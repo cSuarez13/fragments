@@ -52,7 +52,7 @@ Checks the code for style and syntax errors.
 
    ```sh
    curl http://localhost:8080
-  curl -s http://localhost:8080 | jq
+  curl.exe -s http://localhost:8080 | jq
 Check if the server is running.
 
 
