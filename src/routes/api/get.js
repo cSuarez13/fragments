@@ -4,6 +4,7 @@
  * Get a list of fragments for the current user
  */
 module.exports = (req, res) => {
+  console.log('Authenticated User:', req.user); // Debug log
   // TODO: this is just a placeholder. To get something working, return an empty array...
   res.status(200).json({
     status: 'ok',
