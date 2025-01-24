@@ -10,6 +10,13 @@ const { CognitoJwtVerifier } = require('aws-jwt-verify');
 
 const logger = require('./logger');
 
+// Ensure required environment variables are set
+if (!(process.env.AWS_COGNITO_POOL_ID && process.env.AWS_COGNITO_CLIENT_ID)) {
+  throw new Error(
+    'Missing required environment variables: AWS_COGNITO_POOL_ID and AWS_COGNITO_CLIENT_ID'
+  );
+}
+
 // Create a Cognito JWT Verifier, which will confirm that any JWT we
 // get from a user is valid and something we can trust. See:
 // https://github.com/awslabs/aws-jwt-verify#cognitojwtverifier-verify-parameters
