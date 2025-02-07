@@ -8,28 +8,38 @@ const logger = require('../../logger');
 
 // For setting the header, choosing the appropriate header
 const getApiUrl = (req) => {
+  logger.debug('Getting API URL');
   if (process.env.API_URL) {
+    logger.debug(`Using configured API_URL: ${process.env.API_URL}`);
     return process.env.API_URL;
   }
-  return `http://${req.headers.host}`;
+  const url = `http://${req.headers.host}`;
+  logger.debug(`Using host header for API URL: ${url}`);
+  return url;
 };
 
 module.exports = async (req, res) => {
   try {
+    logger.debug('POST fragment request received', { headers: req.headers });
+
     // Check if we got a Buffer or not
     if (!Buffer.isBuffer(req.body)) {
-      logger.warn('Request body is not a Buffer');
+      logger.warn('Request body is not a Buffer', { body: typeof req.body });
       return res.status(415).json(createErrorResponse(415, 'Unsupported Media Type'));
     }
 
     // Get the content type header
     const contentType = req.get('Content-Type');
+    logger.debug('Content-Type header received', { contentType });
 
     // Validate the content type
     if (!Fragment.isSupportedType(contentType)) {
-      logger.warn(`Unsupported type: ${contentType}`);
+      logger.warn(`Unsupported content type: ${contentType}`);
       return res.status(415).json(createErrorResponse(415, 'Unsupported Media Type'));
     }
+
+    // Log the size of the incoming data
+    logger.debug(`Creating fragment with size: ${req.body.length} bytes`);
 
     // Create the fragment
     const fragment = new Fragment({
@@ -39,12 +49,16 @@ module.exports = async (req, res) => {
     });
 
     // Save the fragment metadata and data
+    logger.debug('Saving fragment metadata...', { id: fragment.id });
     await fragment.save();
+
+    logger.debug('Saving fragment data...', { id: fragment.id, size: req.body.length });
     await fragment.setData(req.body);
 
     // Generate the full URL for the Location header using the request's host
     const apiUrl = getApiUrl(req);
     const locationUrl = `${apiUrl}/v1/fragments/${fragment.id}`;
+    logger.debug('Generated Location URL', { locationUrl });
 
     // Create fragment response object with all required properties
     const fragmentResponse = {
@@ -70,9 +84,14 @@ module.exports = async (req, res) => {
       })
     );
 
-    logger.info({ fragment: fragment }, 'Fragment successfully created');
+    logger.info('Fragment successfully created', {
+      id: fragment.id,
+      ownerId: fragment.ownerId,
+      type: fragment.type,
+      size: fragment.size,
+    });
   } catch (error) {
-    logger.error({ error }, 'Error creating fragment');
+    logger.error('Error creating fragment', { error: error.message, stack: error.stack });
     res.status(500).json(createErrorResponse(500, error.message));
   }
 };

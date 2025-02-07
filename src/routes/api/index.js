@@ -6,6 +6,7 @@
 const express = require('express');
 const contentType = require('content-type');
 const { Fragment } = require('../../model/fragment');
+const logger = require('../../logger');
 
 // Create a router on which to mount our API endpoints
 const router = express.Router();
@@ -16,15 +17,26 @@ const rawBody = () =>
     inflate: true,
     limit: '5mb',
     type: (req) => {
-      const { type } = contentType.parse(req);
-      return Fragment.isSupportedType(type);
+      try {
+        // Log attempt to parse content type
+        logger.debug(`Parsing content type: ${req.get('Content-Type')}`);
+        const { type } = contentType.parse(req);
+        const supported = Fragment.isSupportedType(type);
+        if (!supported) {
+          logger.warn(`Unsupported content type: ${type}`);
+        } else {
+          logger.debug(`Content type ${type} is supported`);
+        }
+        return supported;
+      } catch (err) {
+        logger.warn(`Invalid content type header: ${err.message}`);
+        return false;
+      }
     },
   });
 
-// Define our first route, which will be: GET /v1/fragments
+// Define our routes
 router.get('/fragments', require('./get'));
-
-// POST /fragments
 router.post('/fragments', rawBody(), require('./post'));
 
 module.exports = router;

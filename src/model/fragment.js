@@ -1,10 +1,8 @@
-// Use crypto.randomUUID() to create unique IDs, see:
-// https://nodejs.org/api/crypto.html#cryptorandomuuidoptions
+// Fragment class implementation
 const { randomUUID } = require('crypto');
-// Use https://www.npmjs.com/package/content-type to create/parse Content-Type headers
 const contentType = require('content-type');
+const logger = require('../../src/logger');
 
-// Functions for working with fragment metadata/data using our DB
 const {
   readFragment,
   writeFragment,
@@ -16,11 +14,28 @@ const {
 
 class Fragment {
   constructor({ id, ownerId, created, updated, type, size = 0 }) {
-    if (!ownerId) throw new Error('ownerId is required');
-    if (!type) throw new Error('type is required');
-    if (typeof size !== 'number') throw new Error('size must be a number');
-    if (size < 0) throw new Error('size cannot be negative');
-    if (!Fragment.isSupportedType(type)) throw new Error('invalid type');
+    logger.debug('Creating new Fragment instance', { id, ownerId, type, size });
+
+    if (!ownerId) {
+      logger.warn('Attempt to create Fragment without ownerId');
+      throw new Error('ownerId is required');
+    }
+    if (!type) {
+      logger.warn('Attempt to create Fragment without type');
+      throw new Error('type is required');
+    }
+    if (typeof size !== 'number') {
+      logger.warn('Invalid size type provided', { size, type: typeof size });
+      throw new Error('size must be a number');
+    }
+    if (size < 0) {
+      logger.warn('Negative size provided', { size });
+      throw new Error('size cannot be negative');
+    }
+    if (!Fragment.isSupportedType(type)) {
+      logger.warn('Invalid type provided', { type });
+      throw new Error('invalid type');
+    }
 
     this.id = id || randomUUID();
     this.ownerId = ownerId;
@@ -28,99 +43,97 @@ class Fragment {
     this.updated = updated || this.created;
     this.type = type;
     this.size = size;
+
+    logger.debug('Fragment instance created successfully', { id: this.id });
   }
 
-  /**
-   * Get all fragments (id or full) for the given user
-   * @param {string} ownerId user's hashed email
-   * @param {boolean} expand whether to expand ids to full fragments
-   * @returns Promise<Array<Fragment>>
-   */
   static async byUser(ownerId, expand = false) {
+    logger.debug('Getting fragments by user', { ownerId, expand });
     const fragments = await listFragments(ownerId, expand);
 
     if (expand) {
+      logger.debug('Expanding fragment data', { count: fragments.length });
       return fragments.map((fragmentData) => new Fragment(fragmentData));
     }
 
+    logger.debug('Returning fragment ids', { count: fragments.length });
     return fragments;
   }
 
-  /**
-   * Gets a fragment for the user by the given id.
-   * @param {string} ownerId user's hashed email
-   * @param {string} id fragment's id
-   * @returns Promise<Fragment>
-   */
   static async byId(ownerId, id) {
-    // TIP: make sure you properly re-create a full Fragment instance after getting from db.
-    const fragmentData = await readFragment(ownerId, id);
-    return new Fragment(fragmentData);
+    logger.debug('Getting fragment by id', { ownerId, id });
+    try {
+      const fragmentData = await readFragment(ownerId, id);
+      return new Fragment(fragmentData);
+    } catch (error) {
+      logger.error('Error reading fragment', { ownerId, id, error: error.message });
+      throw error;
+    }
   }
 
-  /**
-   * Delete the user's fragment data and metadata for the given id
-   * @param {string} ownerId user's hashed email
-   * @param {string} id fragment's id
-   * @returns Promise<void>
-   */
   static async delete(ownerId, id) {
-    await deleteFragment(ownerId, id);
+    logger.debug('Deleting fragment', { ownerId, id });
+    try {
+      await deleteFragment(ownerId, id);
+      logger.info('Fragment deleted successfully', { ownerId, id });
+    } catch (error) {
+      logger.error('Error deleting fragment', { ownerId, id, error: error.message });
+      throw error;
+    }
   }
 
-  /**
-   * Saves the current fragment (metadata) to the database
-   * @returns Promise<void>
-   */
-  save() {
+  async save() {
+    logger.debug('Saving fragment metadata', { id: this.id });
     this.updated = new Date().toISOString();
-    return writeFragment(this);
+    try {
+      await writeFragment(this);
+      logger.info('Fragment metadata saved successfully', { id: this.id });
+    } catch (error) {
+      logger.error('Error saving fragment metadata', { id: this.id, error: error.message });
+      throw error;
+    }
   }
 
-  /**
-   * Gets the fragment's data from the database
-   * @returns Promise<Buffer>
-   */
-  getData() {
-    return readFragmentData(this.ownerId, this.id);
+  async getData() {
+    logger.debug('Getting fragment data', { id: this.id });
+    try {
+      const data = await readFragmentData(this.ownerId, this.id);
+      logger.debug('Fragment data retrieved', { id: this.id, size: data.length });
+      return data;
+    } catch (error) {
+      logger.error('Error reading fragment data', { id: this.id, error: error.message });
+      throw error;
+    }
   }
 
-  /**
-   * Set's the fragment's data in the database
-   * @param {Buffer} data
-   * @returns Promise<void>
-   */
   async setData(data) {
-    // TIP: make sure you update the metadata whenever you change the data, so they match
-    await writeFragmentData(this.ownerId, this.id, data);
-    this.size = data.length; // Update the fragment size after data is set
-    this.updated = new Date().toISOString(); // Update the `updated` timestamp
-    await this.save(); // Save the updated metadata
+    logger.debug('Setting fragment data', { id: this.id, size: data.length });
+    try {
+      await writeFragmentData(this.ownerId, this.id, data);
+      this.size = data.length;
+      this.updated = new Date().toISOString();
+      await this.save();
+      logger.info('Fragment data saved successfully', { id: this.id, size: this.size });
+    } catch (error) {
+      logger.error('Error setting fragment data', { id: this.id, error: error.message });
+      throw error;
+    }
   }
 
-  /**
-   * Returns the mime type (e.g., without encoding) for the fragment's type:
-   * "text/html; charset=utf-8" -> "text/html"
-   * @returns {string} fragment's mime type (without encoding)
-   */
   get mimeType() {
     const { type } = contentType.parse(this.type);
+    logger.debug('Getting mime type', { type: this.type, mimeType: type });
     return type;
   }
 
-  /**
-   * Returns true if this fragment is a text/* mime type
-   * @returns {boolean} true if fragment's type is text/*
-   */
   get isText() {
-    return this.mimeType.startsWith('text/');
+    const isTextType = this.mimeType.startsWith('text/');
+    logger.debug('Checking if fragment is text', { type: this.type, isText: isTextType });
+    return isTextType;
   }
 
-  /**
-   * Returns the formats into which this fragment type can be converted
-   * @returns {Array<string>} list of supported mime types
-   */
   get formats() {
+    logger.debug('Getting supported formats', { type: this.type });
     let formats = [];
     if (this.type.startsWith('text/plain')) {
       formats = ['text/plain'];
@@ -128,12 +141,8 @@ class Fragment {
     return formats;
   }
 
-  /**
-   * Returns true if we know how to work with this content type
-   * @param {string} value a Content-Type value (e.g., 'text/plain' or 'text/plain: charset=utf-8')
-   * @returns {boolean} true if we support this Content-Type (i.e., type/subtype)
-   */
   static isSupportedType(value) {
+    logger.debug('Checking if type is supported', { type: value });
     const supportedTypes = [
       'text/plain',
       'text/plain; charset=utf-8',
@@ -148,8 +157,17 @@ class Fragment {
       'image/avif',
       'image/gif',
     ];
-    const { type } = contentType.parse(value);
-    return supportedTypes.includes(type);
+    try {
+      const { type } = contentType.parse(value);
+      const supported = supportedTypes.includes(type);
+      if (!supported) {
+        logger.warn('Unsupported content type', { type });
+      }
+      return supported;
+    } catch (error) {
+      logger.warn('Invalid content type format', { type: value, error: error.message });
+      return false;
+    }
   }
 }
 
