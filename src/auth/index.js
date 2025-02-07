@@ -26,6 +26,3 @@ else if (process.env.HTPASSWD_FILE && process.NODE_ENV !== 'production') {
 else {
   throw new Error('missing env vars: no authorization configuration found');
 }
-
-// Export the new auth middleware
-module.exports.authMiddleware = require('./auth-middleware');
