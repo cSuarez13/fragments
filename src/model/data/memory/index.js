@@ -34,46 +34,29 @@ function readFragmentData(ownerId, id) {
 // Get a list of fragment ids/objects for the given user from memory db. Returns a Promise
 async function listFragments(ownerId, expand = false) {
   try {
-    const fragments = await metadata.query(ownerId);
+    // First get all fragment IDs for this owner
+    const fragmentIds = Object.keys(metadata.db[ownerId] || {});
 
-    console.log('Raw fragments from DB:', fragments);
-    console.log('Fragments type:', typeof fragments);
-    console.log('Fragments length:', fragments.length);
-
-    // More detailed logging and filtering
-    const parsedFragments = fragments
-      .map((fragment, index) => {
-        console.log(`Fragment ${index}:`, fragment);
-        try {
-          // Ensure we're parsing string fragments
-          if (typeof fragment === 'string') {
-            return JSON.parse(fragment);
-          }
-          // If it's already an object, validate it
-          return fragment && typeof fragment === 'object' ? fragment : null;
-        } catch (err) {
-          console.error(`Error parsing fragment ${index}:`, err);
-          return null;
-        }
-      })
-      .filter((fragment) => {
-        const isValid = fragment != null && typeof fragment === 'object' && fragment.id != null;
-        if (!isValid) {
-          console.warn('Invalid fragment:', fragment);
-        }
-        return isValid;
-      });
-
-    console.log('Parsed fragments:', parsedFragments);
-
-    if (expand) {
-      return parsedFragments;
+    if (fragmentIds.length === 0) {
+      return [];
     }
 
-    const fragmentIds = parsedFragments.map((fragment) => fragment.id);
-    console.log('Fragment IDs:', fragmentIds);
+    // Get each fragment's data
+    const fragments = await Promise.all(
+      fragmentIds.map(async (id) => {
+        const fragment = await readFragment(ownerId, id);
+        return fragment;
+      })
+    );
 
-    return fragmentIds;
+    // Filter out any nulls and handle expand flag
+    const validFragments = fragments.filter((f) => f !== null);
+
+    if (expand) {
+      return validFragments;
+    }
+
+    return validFragments.map((fragment) => fragment.id);
   } catch (error) {
     console.error('Error in listFragments:', error);
     return [];
