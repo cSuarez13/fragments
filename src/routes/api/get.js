@@ -5,13 +5,24 @@ const logger = require('../../logger');
 
 module.exports = async (req, res) => {
   try {
-    // Get the authenticated user's ID
     const ownerId = req.user;
-    // Check if we should expand the fragments or not
     const expand = req.query.expand;
+
+    logger.debug('Retrieving fragments', {
+      ownerId,
+      expand,
+    });
 
     // Get all fragments for this user
     const fragments = await Fragment.byUser(ownerId, expand === '1');
+
+    // Log the exact structure of fragments
+    logger.debug('Fragments retrieved', {
+      fragmentsType: typeof fragments,
+      fragmentsLength: fragments.length,
+      fragmentsFirstItem: fragments[0],
+      fragmentsDetails: JSON.stringify(fragments),
+    });
 
     res.status(200).json(
       createSuccessResponse({

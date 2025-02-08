@@ -55,6 +55,19 @@ module.exports = async (req, res) => {
     logger.debug('Saving fragment data...', { id: fragment.id, size: req.body.length });
     await fragment.setData(req.body);
 
+    logger.info('Fragment saved', {
+      ownerId: req.user,
+      fragmentId: fragment.id,
+      fragmentMetadata: JSON.stringify({
+        id: fragment.id,
+        ownerId: fragment.ownerId,
+        created: fragment.created,
+        updated: fragment.updated,
+        type: fragment.type,
+        size: fragment.size,
+      }),
+    });
+
     // Generate the full URL for the Location header using the request's host
     const apiUrl = getApiUrl(req);
     const locationUrl = `${apiUrl}/v1/fragments/${fragment.id}`;

@@ -33,29 +33,51 @@ function readFragmentData(ownerId, id) {
 
 // Get a list of fragment ids/objects for the given user from memory db. Returns a Promise
 async function listFragments(ownerId, expand = false) {
-  const fragments = await metadata.query(ownerId);
+  try {
+    const fragments = await metadata.query(ownerId);
 
-  // Add debug logging
-  console.log('Raw fragments from DB:', fragments);
+    console.log('Raw fragments from DB:', fragments);
+    console.log('Fragments type:', typeof fragments);
+    console.log('Fragments length:', fragments.length);
 
-  // Make sure we're properly parsing stored fragments
-  const parsedFragments = fragments
-    .filter((fragment) => fragment != null) // Filter out null values
-    .map((fragment) => {
-      try {
-        return typeof fragment === 'string' ? JSON.parse(fragment) : fragment;
-      } catch (err) {
-        console.error('Error parsing fragment:', err);
-        return null;
-      }
-    })
-    .filter((fragment) => fragment != null); // Filter out any that failed to parse
+    // More detailed logging and filtering
+    const parsedFragments = fragments
+      .map((fragment, index) => {
+        console.log(`Fragment ${index}:`, fragment);
+        try {
+          // Ensure we're parsing string fragments
+          if (typeof fragment === 'string') {
+            return JSON.parse(fragment);
+          }
+          // If it's already an object, validate it
+          return fragment && typeof fragment === 'object' ? fragment : null;
+        } catch (err) {
+          console.error(`Error parsing fragment ${index}:`, err);
+          return null;
+        }
+      })
+      .filter((fragment) => {
+        const isValid = fragment != null && typeof fragment === 'object' && fragment.id != null;
+        if (!isValid) {
+          console.warn('Invalid fragment:', fragment);
+        }
+        return isValid;
+      });
 
-  if (expand) {
-    return parsedFragments;
+    console.log('Parsed fragments:', parsedFragments);
+
+    if (expand) {
+      return parsedFragments;
+    }
+
+    const fragmentIds = parsedFragments.map((fragment) => fragment.id);
+    console.log('Fragment IDs:', fragmentIds);
+
+    return fragmentIds;
+  } catch (error) {
+    console.error('Error in listFragments:', error);
+    return [];
   }
-
-  return parsedFragments.map((fragment) => fragment.id);
 }
 
 // Delete a fragment's metadata and data from memory db. Returns a Promise
