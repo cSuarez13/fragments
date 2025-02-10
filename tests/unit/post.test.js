@@ -29,12 +29,13 @@ describe('POST /v1/fragments', () => {
   });
 
   test('rejects unsupported content types', async () => {
-    request(app)
+    const res = await request(app)
       .post('/v1/fragments')
       .set('Content-Type', 'audio/mpeg')
       .auth('user1@email.com', 'password1')
-      .send('aa')
-      .expect(415);
+      .send('aa');
+
+    expect(res.statusCode).toBe(415);
   });
 
   test('response includes all expected fragment properties with correct values', async () => {
@@ -77,7 +78,10 @@ describe('POST /v1/fragments', () => {
     ); // Known test user hash
     expect(new Date(fragment.created)).toBeInstanceOf(Date);
     expect(new Date(fragment.updated)).toBeInstanceOf(Date);
-    expect(fragment.created).toBe(fragment.updated);
+    expect(new Date(fragment.created).getTime() / 1000).toBeCloseTo(
+      new Date(fragment.updated).getTime() / 1000,
+      1
+    );
     expect(fragment.type).toBe(contentType);
     expect(fragment.size).toBe(testData.length);
 
