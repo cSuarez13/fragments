@@ -15,7 +15,6 @@ module.exports = async (req, res) => {
     // Remove the extension (if any) from the id
     id = extension ? id.replace(extension, '') : id;
 
-    // Try to get the fragment
     const fragment = await Fragment.byId(ownerId, id);
 
     if (!fragment) {
@@ -32,15 +31,13 @@ module.exports = async (req, res) => {
     }
 
     // Handle conversions based on extension
-    const targetType = extension.slice(1); // Remove the '.' from extension
+    const targetType = extension.slice(1);
     if (!fragment.formats.includes(targetType)) {
       return res
         .status(415)
         .json(createErrorResponse(415, `Cannot convert fragment to ${targetType}`));
     }
 
-    // TODO: Implement conversion logic here
-    // For now, just send the original data
     res.setHeader('Content-Type', fragment.type);
     res.send(data);
   } catch (error) {

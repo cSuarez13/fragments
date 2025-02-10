@@ -11,7 +11,7 @@
 module.exports.createSuccessResponse = function (data = {}) {
   return {
     status: 'ok',
-    ...data, // Spread operator to include additional properties passed in `data`
+    ...data,
   };
 };
 

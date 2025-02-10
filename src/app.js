@@ -7,7 +7,6 @@ const compression = require('compression');
 const passport = require('passport');
 
 // author and version from our package.json file
-// TODO: make sure you have updated your name in the `author` section
 // eslint-disable-next-line no-unused-vars
 const { author, version } = require('../package.json');
 

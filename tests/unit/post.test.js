@@ -1,6 +1,5 @@
 const request = require('supertest');
 const app = require('../../src/app');
-require('dotenv').config();
 
 describe('POST /v1/fragments', () => {
   test('unauthenticated requests are denied', () => request(app).post('/v1/fragments').expect(401));
@@ -76,9 +75,9 @@ describe('POST /v1/fragments', () => {
     expect(fragment.ownerId).toBe(
       '11d4c22e42c8f61feaba154683dea407b101cfd90987dda9e342843263ca420a'
     ); // Known test user hash
-    expect(new Date(fragment.created)).toBeInstanceOf(Date); // Valid date
+    expect(new Date(fragment.created)).toBeInstanceOf(Date);
     expect(new Date(fragment.updated)).toBeInstanceOf(Date);
-    expect(fragment.created).toBe(fragment.updated); // Should be same for new fragment
+    expect(fragment.created).toBe(fragment.updated);
     expect(fragment.type).toBe(contentType);
     expect(fragment.size).toBe(testData.length);
 

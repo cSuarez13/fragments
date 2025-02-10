@@ -34,7 +34,7 @@ function readFragmentData(ownerId, id) {
 // Get a list of fragment ids/objects for the given user from memory db. Returns a Promise
 async function listFragments(ownerId, expand = false) {
   try {
-    // First get all fragment IDs for this owner
+    // Get all fragment IDs for this owner
     const fragmentIds = Object.keys(metadata.db[ownerId] || {});
 
     if (fragmentIds.length === 0) {
