@@ -57,14 +57,14 @@ module.exports = async (req, res) => {
     logger.info('Fragment saved', {
       ownerId: req.user,
       fragmentId: fragment.id,
-      fragmentMetadata: JSON.stringify({
+      fragmentMetadata: {
         id: fragment.id,
         ownerId: fragment.ownerId,
         created: fragment.created,
         updated: fragment.updated,
         type: fragment.type,
         size: fragment.size,
-      }),
+      },
     });
 
     // Generate the full URL for the Location header using the request's host
@@ -82,17 +82,13 @@ module.exports = async (req, res) => {
       size: fragment.size,
     };
 
-    // Set response headers
+    // Set Location header only (Content-Type will be set automatically to application/json)
     res.set('Location', locationUrl);
-    res.set('Content-Type', contentType);
 
     // Send the response with proper structure
     res.status(201).json(
       createSuccessResponse({
-        status: 'ok',
-        data: {
-          fragment: fragmentResponse,
-        },
+        fragment: fragmentResponse,
       })
     );
 

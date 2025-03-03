@@ -15,7 +15,8 @@ describe('POST /v1/fragments', () => {
       .set('Content-Type', 'text/plain')
       .send(data);
     expect(res.statusCode).toBe(201);
-    expect(res.headers['content-type']).toContain('text/plain');
+    // Changed to expect application/json instead of text/plain
+    expect(res.headers['content-type']).toContain('application/json');
   });
 
   test('response includes Location header with full URL', async () => {
@@ -48,7 +49,8 @@ describe('POST /v1/fragments', () => {
       .set('Content-Type', contentType)
       .set('Accept', 'application/json')
       .send(testData)
-      .expect('Content-Type', /text\/plain/)
+      // Changed to expect application/json instead of text/plain
+      .expect('Content-Type', /application\/json/)
       .expect(201);
 
     // Parse the response body as JSON
@@ -56,10 +58,11 @@ describe('POST /v1/fragments', () => {
 
     // Check response body structure
     expect(body.status).toBe('ok');
-    expect(body.data).toBeDefined();
-    expect(body.data.fragment).toBeDefined();
 
-    const fragment = body.data.fragment;
+    // Modified to check for fragment property directly instead of data.fragment
+    expect(body.fragment).toBeDefined();
+
+    const fragment = body.fragment;
 
     // Check all required properties exist
     expect(fragment).toHaveProperty('id');
