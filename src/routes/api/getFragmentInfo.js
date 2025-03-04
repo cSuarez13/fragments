@@ -1,4 +1,5 @@
 // src/routes/api/getFragmentInfo.js
+// This route handles GET /v1/fragments/:id/info requests
 const { Fragment } = require('../../model/fragment');
 const { createSuccessResponse, createErrorResponse } = require('../../response');
 const logger = require('../../logger');
@@ -16,7 +17,7 @@ module.exports = async (req, res) => {
       return res.status(404).json(createErrorResponse(404, 'Fragment not found'));
     }
 
-    // Return only the metadata in a JSON response
+    // Return only the metadata in a JSON response without the fragment data
     res.json(
       createSuccessResponse({
         fragment: {
