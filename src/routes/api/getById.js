@@ -3,6 +3,8 @@ const path = require('path');
 const { Fragment } = require('../../model/fragment');
 const { createErrorResponse } = require('../../response');
 const logger = require('../../logger');
+// Import markdown-it
+const markdown = require('markdown-it')();
 
 module.exports = async (req, res) => {
   try {
@@ -38,7 +40,34 @@ module.exports = async (req, res) => {
         .json(createErrorResponse(415, `Cannot convert fragment to ${targetType}`));
     }
 
-    res.setHeader('Content-Type', fragment.type);
+    // Set appropriate Content-Type
+    let contentType;
+    switch (targetType) {
+      case 'html':
+        contentType = 'text/html';
+        break;
+      case 'txt':
+        contentType = 'text/plain';
+        break;
+      case 'json':
+        contentType = 'application/json';
+        break;
+      case 'md':
+        contentType = 'text/markdown';
+        break;
+      default:
+        contentType = fragment.type;
+    }
+
+    // Handle Markdown to HTML conversion
+    if (fragment.type === 'text/markdown' && targetType === 'html') {
+      const htmlContent = markdown.render(data.toString());
+      res.setHeader('Content-Type', contentType);
+      return res.send(htmlContent);
+    }
+
+    // For other conversions, return original data with new Content-Type
+    res.setHeader('Content-Type', contentType);
     res.send(data);
   } catch (error) {
     logger.error({ error }, 'Error getting fragment by id');

@@ -88,4 +88,30 @@ describe('GET /v1/fragments/:id', () => {
     expect(res.status).toBe(500);
     expect(res.body.status).toBe('error');
   });
+
+  test('converts markdown to HTML when requested with .html extension', async () => {
+    const markdownData = Buffer.from('# Test Heading\n\nThis is a test.');
+    const markdownFragment = {
+      id: 'test-fragment-id',
+      ownerId: 'test-owner',
+      created: '2023-01-01',
+      updated: '2023-01-01',
+      type: 'text/markdown',
+      size: markdownData.length,
+      formats: ['md', 'html', 'txt'],
+      getData: jest.fn(),
+    };
+
+    Fragment.byId.mockResolvedValue(markdownFragment);
+    markdownFragment.getData.mockResolvedValue(markdownData);
+
+    const res = await request(app)
+      .get('/v1/fragments/test-fragment-id.html')
+      .auth('user1@email.com', 'password1');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('text/html');
+    expect(res.text).toContain('<h1>Test Heading</h1>');
+    expect(res.text).toContain('<p>This is a test.</p>');
+  });
 });

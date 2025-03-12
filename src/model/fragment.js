@@ -134,11 +134,26 @@ class Fragment {
 
   get formats() {
     logger.debug('Getting supported formats', { type: this.type });
-    let formats = [];
+
     if (this.type.startsWith('text/plain')) {
-      formats = ['text/plain'];
+      return ['text/plain'];
     }
-    return formats;
+
+    if (this.type === 'text/markdown') {
+      return ['md', 'html', 'txt'];
+    }
+
+    if (this.type === 'text/html') {
+      return ['html', 'txt'];
+    }
+
+    if (this.type === 'application/json') {
+      return ['json', 'txt'];
+    }
+
+    // Default to returning just the mimeType extension
+    const ext = this.mimeType.split('/')[1];
+    return ext ? [ext] : [];
   }
 
   static isSupportedType(value) {
