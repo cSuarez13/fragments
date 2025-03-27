@@ -1,6 +1,7 @@
 // src/routes/index.js
 const express = require('express');
-const { version, author } = require('../../package.json');
+const { version } = require('../../package.json');
+const { hostname } = require('os');
 
 // Our authentication middleware
 const { authenticate } = require('../auth');
@@ -17,21 +18,15 @@ const router = express.Router();
  */
 router.use('/v1', authenticate(), require('./api'));
 
-/**
- * Define a simple health check route. If the server is running,
- * we'll respond with a 200 OK. If not, the server isn't healthy.
- */
 router.get('/', (req, res) => {
-  // Clients shouldn't cache this response (always request it fresh)
   res.setHeader('Cache-Control', 'no-cache');
-
-  // Send a 200 'OK' response using createSuccessResponse
-  return res.status(200).json(
+  res.status(200).json(
     createSuccessResponse({
-      status: 'ok',
-      author,
-      githubUrl: 'https://github.com/cSuarez13/fragments', // Ensure this is your actual GitHub URL
+      author: 'Claudia Suarez',
+      githubUrl: 'https://github.com/cSuarez13/fragments',
       version,
+      // Include the hostname in the response
+      hostname: hostname(),
     })
   );
 });

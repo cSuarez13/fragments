@@ -67,7 +67,7 @@ class Fragment {
       return new Fragment(fragmentData);
     } catch (error) {
       logger.error('Error reading fragment', { ownerId, id, error: error.message });
-      throw error;
+      return null;
     }
   }
 
