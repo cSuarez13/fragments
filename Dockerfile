@@ -44,7 +44,7 @@ COPY ./src ./src
 COPY ./tests/.htpasswd ./tests/.htpasswd
 
 # Set ownership to the non-root user
-RUN chown -R fragments:fragments /app
+#RUN chown -R fragments:fragments /app
 
 # Switch to the non-root user
 #USER fragments
