@@ -1,9 +1,9 @@
 {
-  "taskDefinitionArn": "arn:aws:ecs:us-east-1:265668141080:task-definition/fragments-task:1",
+  "taskDefinitionArn": "arn:aws:ecs:us-east-1:265668141080:task-definition/fragments-task:3",
   "containerDefinitions": [
     {
       "name": "fragments-container",
-      "image": "csuarez13/fragments:latest",
+      "image": "265668141080.dkr.ecr.us-east-1.amazonaws.com/fragments:v0.9.0",
       "cpu": 256,
       "memoryReservation": 512,
       "portMappings": [
@@ -18,22 +18,44 @@
       "essential": true,
       "environment": [
         {
-          "name": "AWS_S3_BUCKET_NAME",
-          "value": "csuarez-socorro-fragments"
+          "name": "AWS_REGION",
+          "value": "us-east-1"
+        },
+        {
+          "name": "AWS_COGNITO_POOL_ID",
+          "value": "us-east-1_facG6msWJ"
+        },
+        {
+          "name": "API_URL",
+          "value": "http://fragments-lb-419023691.us-east-1.elb.amazonaws.com"
         },
         {
           "name": "PORT",
           "value": "80"
         },
         {
+          "name": "AWS_S3_ENDPOINT_URL",
+          "value": "http://localstack:4566"
+        },
+        {
+          "name": "AWS_S3_BUCKET_NAME",
+          "value": "csuarez-socorro-fragments"
+        },
+        {
+          "name": "NODE_ENV",
+          "value": "production"
+        },
+        {
           "name": "LOG_LEVEL",
-          "value": "debug"
+          "value": "info"
+        },
+        {
+          "name": "AWS_COGNITO_CLIENT_ID",
+          "value": "bki7dugmjokfdu4rup0a8e68f"
         }
       ],
-      "environmentFiles": [],
       "mountPoints": [],
       "volumesFrom": [],
-      "ulimits": [],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
@@ -43,8 +65,7 @@
           "max-buffer-size": "25m",
           "awslogs-region": "us-east-1",
           "awslogs-stream-prefix": "ecs"
-        },
-        "secretOptions": []
+        }
       },
       "systemControls": []
     }
@@ -53,7 +74,7 @@
   "taskRoleArn": "arn:aws:iam::265668141080:role/LabRole",
   "executionRoleArn": "arn:aws:iam::265668141080:role/LabRole",
   "networkMode": "awsvpc",
-  "revision": 1,
+  "revision": 3,
   "volumes": [],
   "status": "ACTIVE",
   "requiresAttributes": [
@@ -62,6 +83,9 @@
     },
     {
       "name": "ecs.capability.execution-role-awslogs"
+    },
+    {
+      "name": "com.amazonaws.ecs.capability.ecr-auth"
     },
     {
       "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
@@ -74,6 +98,9 @@
     },
     {
       "name": "com.amazonaws.ecs.capability.task-iam-role"
+    },
+    {
+      "name": "ecs.capability.execution-role-ecr-pull"
     },
     {
       "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
@@ -94,7 +121,7 @@
     "cpuArchitecture": "X86_64",
     "operatingSystemFamily": "LINUX"
   },
-  "registeredAt": "2025-03-28T00:27:58.121Z",
+  "registeredAt": "2025-03-28T23:48:32.611Z",
   "registeredBy": "arn:aws:sts::265668141080:assumed-role/voclabs/user3764795=Suarez_Socorro,_Claudia",
   "enableFaultInjection": false,
   "tags": []
