@@ -22,14 +22,6 @@
           "value": "us-east-1"
         },
         {
-          "name": "AWS_COGNITO_POOL_ID",
-          "value": "us-east-1_facG6msWJ"
-        },
-        {
-          "name": "API_URL",
-          "value": "http://fragments-lb-419023691.us-east-1.elb.amazonaws.com"
-        },
-        {
           "name": "PORT",
           "value": "80"
         },
@@ -48,10 +40,6 @@
         {
           "name": "LOG_LEVEL",
           "value": "info"
-        },
-        {
-          "name": "AWS_COGNITO_CLIENT_ID",
-          "value": "bki7dugmjokfdu4rup0a8e68f"
         }
       ],
       "mountPoints": [],
