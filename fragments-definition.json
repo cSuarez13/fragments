@@ -43,15 +43,15 @@
         },
         {
           "name": "AWS_COGNITO_POOL_ID",
-          "value": "PLACEHOLDER_WILL_BE_REPLACED"
+          "value": "PLACEHOLDER"
         },
         {
           "name": "AWS_COGNITO_CLIENT_ID",
-          "value": "PLACEHOLDER_WILL_BE_REPLACED"
+          "value": "PLACEHOLDER"
         },
         {
           "name": "API_URL",
-          "value": "PLACEHOLDER_WILL_BE_REPLACED"
+          "value": "PLACEHOLDER"
         }
       ],
       "mountPoints": [],
