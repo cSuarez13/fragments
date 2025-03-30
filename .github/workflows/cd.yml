@@ -90,7 +90,6 @@ jobs:
           environment-variables: |
             LOG_LEVEL=info
             NODE_ENV=production
-            AWS_S3_ENDPOINT_URL=http://localstack:4566
             AWS_REGION=us-east-1
             AWS_S3_BUCKET_NAME=csuarez-socorro-fragments
             AWS_COGNITO_POOL_ID=${{ secrets.AWS_COGNITO_POOL_ID }}
