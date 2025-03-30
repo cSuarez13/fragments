@@ -59,9 +59,9 @@ class Fragment {
 
     if (expand) {
       logger.debug('Expanding fragment data', { count: fragments.length });
-      // Make sure each fragment has all required properties
+      // Make sure each fragment has the ownerId before creating Fragment instances
       return fragments.map((fragmentData) => {
-        // Ensure ownerId is set in each fragment
+        // If ownerId is missing, add it from the function parameter
         if (!fragmentData.ownerId) {
           fragmentData.ownerId = ownerId;
         }
@@ -72,7 +72,6 @@ class Fragment {
     logger.debug('Returning fragment ids', { count: fragments.length });
     return fragments;
   }
-
   static async byId(ownerId, id) {
     logger.debug('Getting fragment by id', { ownerId, id });
     try {
