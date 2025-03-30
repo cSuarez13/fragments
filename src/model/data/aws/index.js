@@ -102,10 +102,39 @@ async function readFragmentData(ownerId, id) {
 // Get a list of fragment ids/objects for the given user from memory db. Returns a Promise
 async function listFragments(ownerId, expand = false) {
   try {
-    return await metadata.query(ownerId, expand);
-  } catch (err) {
-    logger.warn({ err, ownerId }, 'Error getting fragment ids');
-    throw new Error('unable to get fragment ids');
+    // Get all fragment IDs for this owner
+    const fragmentIds = Object.keys(metadata.db[ownerId] || {});
+
+    if (fragmentIds.length === 0) {
+      return [];
+    }
+
+    // Get each fragment's data
+    const fragments = await Promise.all(
+      fragmentIds.map(async (id) => {
+        const fragment = await readFragment(ownerId, id);
+        return fragment;
+      })
+    );
+
+    // Filter out any nulls and handle expand flag
+    const validFragments = fragments.filter((f) => f !== null);
+
+    if (expand) {
+      // Make sure each fragment has the ownerId property
+      return validFragments.map((fragment) => {
+        // Ensure ownerId is included in each fragment
+        if (!fragment.ownerId) {
+          fragment.ownerId = ownerId;
+        }
+        return fragment;
+      });
+    }
+
+    return validFragments.map((fragment) => fragment.id);
+  } catch (error) {
+    console.error('Error in listFragments:', error);
+    return [];
   }
 }
 

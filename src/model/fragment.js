@@ -49,11 +49,24 @@ class Fragment {
 
   static async byUser(ownerId, expand = false) {
     logger.debug('Getting fragments by user', { ownerId, expand });
+
+    if (!ownerId) {
+      logger.error('byUser called without ownerId');
+      throw new Error('ownerId is required');
+    }
+
     const fragments = await listFragments(ownerId, expand);
 
     if (expand) {
       logger.debug('Expanding fragment data', { count: fragments.length });
-      return fragments.map((fragmentData) => new Fragment(fragmentData));
+      // Make sure each fragment has all required properties
+      return fragments.map((fragmentData) => {
+        // Ensure ownerId is set in each fragment
+        if (!fragmentData.ownerId) {
+          fragmentData.ownerId = ownerId;
+        }
+        return new Fragment(fragmentData);
+      });
     }
 
     logger.debug('Returning fragment ids', { count: fragments.length });
