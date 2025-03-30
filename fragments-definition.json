@@ -40,6 +40,18 @@
         {
           "name": "LOG_LEVEL",
           "value": "info"
+        },
+        {
+          "name": "AWS_COGNITO_POOL_ID",
+          "value": "PLACEHOLDER_WILL_BE_REPLACED"
+        },
+        {
+          "name": "AWS_COGNITO_CLIENT_ID",
+          "value": "PLACEHOLDER_WILL_BE_REPLACED"
+        },
+        {
+          "name": "API_URL",
+          "value": "PLACEHOLDER_WILL_BE_REPLACED"
         }
       ],
       "mountPoints": [],
