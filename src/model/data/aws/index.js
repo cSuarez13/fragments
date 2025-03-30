@@ -32,10 +32,16 @@ async function writeFragmentData(ownerId, id, data) {
   // Create the PUT API params from our details
   const params = {
     Bucket: process.env.AWS_S3_BUCKET_NAME,
-    // Our key will be a mix of the ownerID and fragment id, written as a path
     Key: `${ownerId}/${id}`,
     Body: data,
   };
+
+  // Log the parameters
+  logger.debug('S3 PUT parameters', {
+    Bucket: params.Bucket,
+    Key: params.Key,
+    BodySize: data.length,
+  });
 
   // Create a PUT Object command to send to S3
   const command = new PutObjectCommand(params);
@@ -44,9 +50,19 @@ async function writeFragmentData(ownerId, id, data) {
     // Use our client to send the command
     await s3Client.send(command);
   } catch (err) {
-    // If anything goes wrong, log enough info that we can debug
+    // Log complete error details
     const { Bucket, Key } = params;
-    logger.error({ err, Bucket, Key }, 'Error uploading fragment data to S3');
+    logger.error(
+      {
+        err,
+        errorName: err.name,
+        errorMessage: err.message,
+        errorStack: err.stack,
+        Bucket,
+        Key,
+      },
+      'Error uploading fragment data to S3'
+    );
     throw new Error('unable to upload fragment data');
   }
 }
