@@ -109,6 +109,8 @@ jobs:
       - name: Install node dependencies
         # NOTE: we need to install dev dependencies too vs. production only for hurl
         run: npm install
+      - name: Set script permissions
+        run: chmod +x ./scripts/local-aws-setup.sh
       - name: Build Containers
         run: docker compose up -d
       - name: Setup Local AWS Resources
