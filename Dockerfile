@@ -22,7 +22,7 @@ LABEL maintainer="Claudia Suarez <csuarez-socorro@myseneca.ca>"
 LABEL description="Fragments node.js microservice"
 
 # Specify default environment variables
-ENV PORT=80 \
+ENV PORT=8080 \
     NODE_ENV=production
 
 # Create a non-root user
@@ -50,7 +50,7 @@ COPY ./tests/.htpasswd ./tests/.htpasswd
 #USER fragments
 
 # Expose the port the app runs on
-EXPOSE 80
+EXPOSE 8080 80
 
 # Command to run the application
 CMD ["node", "src/index.js"]
