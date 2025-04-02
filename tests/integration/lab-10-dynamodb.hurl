@@ -88,9 +88,6 @@ jsonpath "$.status" == "ok"
 jsonpath "$.fragments" exists
 jsonpath "$.fragments" isCollection
 
-# Verify the fragments list has items - we don't check specific IDs here
-# due to the null values issue in the current implementation
-
 # 6. DELETE the first fragment
 DELETE {{fragment1_url}}
 [BasicAuth]
