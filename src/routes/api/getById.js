@@ -3,23 +3,28 @@ const path = require('path');
 const { Fragment } = require('../../model/fragment');
 const { createErrorResponse } = require('../../response');
 const logger = require('../../logger');
-// Import markdown-it
-const markdown = require('markdown-it')();
+const { convertData, getMimeType } = require('../../utils/converter');
 
 module.exports = async (req, res) => {
   try {
     const ownerId = req.user;
-    // Get the fragment id from the URL
+    // Get the fragment id from the URL (including any extension)
     let { id } = req.params;
+
+    logger.debug('Getting fragment by ID', { id, ownerId });
 
     // Check if there's an extension
     const extension = path.extname(id);
     // Remove the extension (if any) from the id
-    id = extension ? id.replace(extension, '') : id;
+    const fragmentId = extension ? id.replace(extension, '') : id;
+    // Get the extension without the dot
+    const targetFormat = extension ? extension.slice(1).toLowerCase() : null;
 
-    const fragment = await Fragment.byId(ownerId, id);
+    // Try to get the fragment from the database
+    const fragment = await Fragment.byId(ownerId, fragmentId);
 
     if (!fragment) {
+      logger.warn('Fragment not found', { id: fragmentId, ownerId });
       return res.status(404).json(createErrorResponse(404, 'Fragment not found'));
     }
 
@@ -27,48 +32,58 @@ module.exports = async (req, res) => {
     const data = await fragment.getData();
 
     // If there's no extension, send the original format
-    if (!extension) {
+    if (!targetFormat) {
+      logger.debug('Sending fragment in original format', { id: fragmentId, type: fragment.type });
       res.setHeader('Content-Type', fragment.type);
       return res.send(data);
     }
 
-    // Handle conversions based on extension
-    const targetType = extension.slice(1);
-    if (!fragment.formats.includes(targetType)) {
+    // Check if the requested conversion is supported for this fragment
+    // We need to handle this differently based on the implementation of fragment.formats
+    const formats = fragment.formats || [];
+    if (!formats.includes(targetFormat)) {
+      logger.warn('Conversion not supported', {
+        id: fragmentId,
+        sourceType: fragment.type,
+        targetFormat,
+        supportedFormats: formats,
+      });
       return res
         .status(415)
-        .json(createErrorResponse(415, `Cannot convert fragment to ${targetType}`));
+        .json(createErrorResponse(415, `Cannot convert fragment to ${targetFormat}`));
     }
 
-    // Set appropriate Content-Type
-    let contentType;
-    switch (targetType) {
-      case 'html':
-        contentType = 'text/html';
-        break;
-      case 'txt':
-        contentType = 'text/plain';
-        break;
-      case 'json':
-        contentType = 'application/json';
-        break;
-      case 'md':
-        contentType = 'text/markdown';
-        break;
-      default:
-        contentType = fragment.type;
-    }
+    // Convert the data to the requested format
+    logger.debug('Converting fragment', {
+      id: fragmentId,
+      sourceType: fragment.type,
+      targetFormat,
+    });
 
-    // Handle Markdown to HTML conversion
-    if (fragment.type === 'text/markdown' && targetType === 'html') {
+    // Special case for tests and backward compatibility
+    if (fragment.type === 'text/markdown' && targetFormat === 'html') {
+      const markdown = require('markdown-it')();
       const htmlContent = markdown.render(data.toString());
-      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Type', 'text/html');
       return res.send(htmlContent);
     }
 
-    // For other conversions, return original data with new Content-Type
-    res.setHeader('Content-Type', contentType);
-    res.send(data);
+    try {
+      // Convert the data using our new converter
+      const convertedData = await convertData(data, fragment.type, targetFormat);
+
+      // Get the appropriate MIME type for the converted format
+      const contentType = getMimeType(targetFormat);
+
+      // Send the converted data
+      res.setHeader('Content-Type', contentType);
+      return res.send(convertedData);
+    } catch (conversionError) {
+      logger.error({ error: conversionError }, 'Error converting fragment');
+      return res
+        .status(500)
+        .json(createErrorResponse(500, `Error converting fragment: ${conversionError.message}`));
+    }
   } catch (error) {
     logger.error({ error }, 'Error getting fragment by id');
     res.status(500).json(createErrorResponse(500, error.message));

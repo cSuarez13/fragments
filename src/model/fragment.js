@@ -147,49 +147,113 @@ class Fragment {
   get formats() {
     logger.debug('Getting supported formats', { type: this.type });
 
-    if (this.type.startsWith('text/plain')) {
+    // Base MIME type (without parameters like charset)
+    const baseMimeType = this.mimeType.split(';')[0].trim();
+
+    // Handle text formats
+    if (baseMimeType === 'text/plain') {
       return ['text/plain'];
     }
 
-    if (this.type === 'text/markdown') {
+    if (baseMimeType === 'text/markdown') {
       return ['md', 'html', 'txt'];
     }
 
-    if (this.type === 'text/html') {
+    if (baseMimeType === 'text/html') {
       return ['html', 'txt'];
     }
 
-    if (this.type === 'application/json') {
+    if (baseMimeType === 'text/csv') {
+      return ['csv', 'txt', 'json'];
+    }
+
+    // Handle data formats
+    if (baseMimeType === 'application/json') {
       return ['json', 'txt'];
     }
 
-    // Default to returning just the mimeType extension
-    const ext = this.mimeType.split('/')[1];
+    if (baseMimeType === 'application/yaml' || baseMimeType === 'application/yml') {
+      return ['yaml', 'yml', 'json', 'txt'];
+    }
+
+    // Handle image formats - all image types can be converted to any other image type
+    if (baseMimeType.startsWith('image/')) {
+      return ['png', 'jpg', 'jpeg', 'webp', 'gif', 'avif'];
+    }
+
+    // Default to returning just the extension from the MIME type
+    const ext = baseMimeType.split('/')[1];
     return ext ? [ext] : [];
+  }
+
+  // Add a helper method to determine if a fragment can be converted to a target type
+  canConvert(extension) {
+    // Plain text can only be returned as text/plain
+    if (this.type.startsWith('text/plain')) {
+      return extension === 'text/plain' || extension === 'txt';
+    }
+
+    // Markdown can be converted to HTML or txt
+    if (this.type === 'text/markdown') {
+      return ['md', 'html', 'txt'].includes(extension);
+    }
+
+    // HTML can be converted to HTML or txt
+    if (this.type === 'text/html') {
+      return ['html', 'txt'].includes(extension);
+    }
+
+    // Handle image conversions - all image types can be converted to any other image type
+    if (this.type.startsWith('image/')) {
+      return ['png', 'jpg', 'jpeg', 'webp', 'gif', 'avif'].includes(extension);
+    }
+
+    // Default check against the formats
+    return this.formats.includes(extension);
   }
 
   static isSupportedType(value) {
     logger.debug('Checking if type is supported', { type: value });
-    const supportedTypes = [
-      'text/plain',
-      'text/plain; charset=utf-8',
-      'text/markdown',
-      'text/html',
-      'text/csv',
-      'application/json',
-      'application/yaml',
-      'image/png',
-      'image/jpeg',
-      'image/webp',
-      'image/avif',
-      'image/gif',
-    ];
+
     try {
+      // Parse the content type to handle parameters like charset
       const { type } = contentType.parse(value);
-      const supported = supportedTypes.includes(type);
+
+      // The base type (e.g., 'text/plain', 'image/png')
+      const baseType = type.split(';')[0].trim();
+
+      // List of supported MIME types
+      const supportedTypes = [
+        // Text formats
+        'text/plain',
+        'text/markdown',
+        'text/html',
+        'text/csv',
+
+        // Data formats
+        'application/json',
+        'application/yaml',
+        'application/yml',
+
+        // Image formats
+        'image/png',
+        'image/jpeg',
+        'image/webp',
+        'image/avif',
+        'image/gif',
+      ];
+
+      const supported = supportedTypes.some(
+        (supportedType) =>
+          baseType === supportedType ||
+          // Special case for text/plain with charset
+          (baseType === 'text/plain' && type.startsWith('text/plain;'))
+      );
+
       if (!supported) {
-        logger.warn('Unsupported content type', { type });
+        logger.warn('Unsupported content type', { type: baseType });
       }
+
       return supported;
     } catch (error) {
       logger.warn('Invalid content type format', { type: value, error: error.message });
