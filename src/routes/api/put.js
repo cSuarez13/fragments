@@ -30,6 +30,17 @@ module.exports = async (req, res) => {
         .json(createErrorResponse(400, 'Content-Type cannot be changed after fragment is created'));
     }
 
+    // Create a version of the current state before updating
+    try {
+      await fragment.createVersion();
+      logger.debug(`Created version for fragment id=${id}`);
+    } catch (versionError) {
+      logger.warn(`Could not create version for fragment id=${id}`, {
+        error: versionError.message,
+      });
+      // Continue with the update even if versioning fails
+    }
+
     // Update the fragment data
     await fragment.setData(req.body);
     logger.info(`Fragment with id=${id} updated for user=${ownerId}`);
