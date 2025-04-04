@@ -260,6 +260,180 @@ class Fragment {
       return false;
     }
   }
+
+  /**
+   * Creates a new version of the fragment when data is updated
+   * @returns {Promise<Object>} The created version object
+   */
+  async createVersion() {
+    const { FragmentVersion } = require('./fragment-version');
+    const { writeFragmentVersion, writeFragmentVersionData, getLatestVersionNumber } = process.env
+      .AWS_REGION
+      ? require('./data/aws/versions')
+      : require('./data/memory/versions');
+
+    try {
+      // Get the latest version number and increment it
+      const lastVersionNum = await getLatestVersionNumber(this.ownerId, this.id);
+      const newVersionNum = lastVersionNum + 1;
+
+      // Create a version ID using the pattern fragmentId_v1, fragmentId_v2, etc.
+      const versionId = FragmentVersion.toVersionId(this.id, newVersionNum);
+
+      // Create a version object
+      const version = new FragmentVersion({
+        id: versionId,
+        fragmentId: this.id,
+        ownerId: this.ownerId,
+        created: new Date().toISOString(),
+        type: this.type,
+        size: this.size,
+        versionNum: newVersionNum,
+      });
+
+      // Get current fragment data
+      const data = await this.getData();
+
+      // Save version metadata
+      await writeFragmentVersion(version);
+
+      // Save version data
+      await writeFragmentVersionData(this.ownerId, versionId, data);
+
+      logger.info('Created fragment version', {
+        fragmentId: this.id,
+        versionId,
+        versionNum: newVersionNum,
+      });
+
+      return version;
+    } catch (error) {
+      logger.error('Error creating fragment version', {
+        fragmentId: this.id,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Get all versions of this fragment
+   * @param {boolean} expand - Whether to include full metadata (true) or just IDs (false)
+   * @returns {Promise<Array>} Array of version objects or IDs
+   */
+  async getVersions(expand = false) {
+    const { listFragmentVersions } = process.env.AWS_REGION
+      ? require('./data/aws/versions')
+      : require('./data/memory/versions');
+
+    try {
+      return await listFragmentVersions(this.ownerId, this.id, expand);
+    } catch (error) {
+      logger.error('Error getting fragment versions', {
+        fragmentId: this.id,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Get a specific version of this fragment
+   * @param {string} versionId - The version ID to retrieve
+   * @returns {Promise<Object|null>} The version object and data, or null if not found
+   */
+  async getVersion(versionId) {
+    const { readFragmentVersion, readFragmentVersionData } = process.env.AWS_REGION
+      ? require('./data/aws/versions')
+      : require('./data/memory/versions');
+    const { FragmentVersion } = require('./fragment-version');
+
+    try {
+      // First, validate that this versionId belongs to this fragment
+      try {
+        const { fragmentId } = FragmentVersion.parseVersionId(versionId);
+        if (fragmentId !== this.id) {
+          throw new Error('Version does not belong to this fragment');
+        }
+      } catch (parseError) {
+        logger.warn('Invalid version ID format', { versionId, error: parseError.message });
+        return null;
+      }
+
+      // Get the version metadata
+      const version = await readFragmentVersion(this.ownerId, versionId);
+      if (!version) {
+        return null;
+      }
+
+      // Get the version data
+      const data = await readFragmentVersionData(this.ownerId, versionId);
+
+      return { metadata: version, data };
+    } catch (error) {
+      logger.error('Error getting fragment version', {
+        fragmentId: this.id,
+        versionId,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Restore the fragment to a specific version
+   * @param {string} versionId - The version ID to restore
+   * @returns {Promise<boolean>} Whether the restore was successful
+   */
+  async restoreVersion(versionId) {
+    // Determine which data layer to use based on environment
+    const versionHandler = process.env.AWS_REGION
+      ? require('./data/aws/versions')
+      : require('./data/memory/versions');
+
+    const { readFragmentVersionData } = versionHandler;
+    const { FragmentVersion } = require('./fragment-version');
+
+    try {
+      // First, validate that this versionId belongs to this fragment
+      let fragmentId;
+      try {
+        const result = FragmentVersion.parseVersionId(versionId);
+        fragmentId = result.fragmentId;
+
+        if (fragmentId !== this.id) {
+          throw new Error('Version does not belong to this fragment');
+        }
+      } catch (parseError) {
+        logger.warn('Invalid version ID format', { versionId, error: parseError.message });
+        throw new Error(`Invalid version ID format: ${parseError.message}`);
+      }
+
+      // Get the version data
+      const versionData = await readFragmentVersionData(this.ownerId, versionId);
+      if (!versionData) {
+        logger.warn('Version data not found', { versionId });
+        throw new Error('Version data not found');
+      }
+
+      // Update the fragment with this version's data
+      await this.setData(versionData);
+
+      logger.info('Restored fragment to version', {
+        fragmentId: this.id,
+        versionId,
+      });
+
+      return true;
+    } catch (error) {
+      logger.error('Error restoring fragment version', {
+        fragmentId: this.id,
+        versionId,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
 }
 
 module.exports.Fragment = Fragment;
