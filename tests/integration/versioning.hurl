@@ -28,7 +28,7 @@ Updated fragment content - version 1
 HTTP/1.1 200
 [Asserts]
 jsonpath "$.status" == "ok"
-jsonpath "$.fragment.size" == 33
+jsonpath "$.fragment.size" == 37
 
 # 3. Update the fragment again to create another version
 PUT {{fragment_url}}
@@ -42,7 +42,7 @@ Updated fragment content - version 2
 HTTP/1.1 200
 [Asserts]
 jsonpath "$.status" == "ok"
-jsonpath "$.fragment.size" == 33
+jsonpath "$.fragment.size" == 37
 
 # 4. Get the list of versions for this fragment
 GET {{fragment_url}}/versions
