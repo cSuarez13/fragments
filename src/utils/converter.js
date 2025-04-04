@@ -1,6 +1,8 @@
 // src/utils/converter.js
 const markdown = require('markdown-it')();
 const logger = require('../logger');
+const sharp = require('sharp');
+const yaml = require('js-yaml');
 
 /**
  * Convert fragment data from one format to another
@@ -34,6 +36,16 @@ async function convertData(data, sourceType, targetExt) {
     // Handle application/json conversions
     if (baseSourceType === 'application/json') {
       return convertJson(data, targetExt);
+    }
+
+    // Handle application/yaml conversions
+    if (baseSourceType === 'application/yaml' || baseSourceType === 'application/yml') {
+      return convertYaml(data, targetExt);
+    }
+
+    // Handle image conversions
+    if (baseSourceType.startsWith('image/')) {
+      return convertImage(data, baseSourceType, targetExt);
     }
 
     // Default: return original data if no conversion needed
@@ -139,6 +151,12 @@ function convertJson(data, targetExt) {
         // JSON to text (prettified JSON)
         return Buffer.from(JSON.stringify(json, null, 2), 'utf8');
       }
+      case 'yaml':
+      case 'yml': {
+        // Convert JSON to YAML
+        const yamlStr = yaml.dump(json);
+        return Buffer.from(yamlStr, 'utf8');
+      }
       default:
         // Return original JSON
         return data;
@@ -146,6 +164,72 @@ function convertJson(data, targetExt) {
   } catch (err) {
     logger.error({ err }, 'Error converting JSON');
     throw new Error('Unable to convert JSON data');
+  }
+}
+
+/**
+ * Convert YAML data to other formats
+ */
+function convertYaml(data, targetExt) {
+  try {
+    const yamlStr = data.toString('utf8');
+    const parsedData = yaml.load(yamlStr);
+
+    switch (targetExt) {
+      case 'json': {
+        // YAML to JSON
+        return Buffer.from(JSON.stringify(parsedData), 'utf8');
+      }
+      case 'txt': {
+        // YAML to text (original YAML)
+        return data;
+      }
+      default:
+        // Return original YAML
+        return data;
+    }
+  } catch (err) {
+    logger.error({ err }, 'Error converting YAML');
+    throw new Error('Unable to convert YAML data');
+  }
+}
+
+/**
+ * Convert image data between formats using Sharp
+ * @param {Buffer} data - The image data
+ * @param {string} sourceType - The source image MIME type
+ * @param {string} targetExt - The target format extension
+ * @returns {Promise<Buffer>} - The converted image data
+ */
+async function convertImage(data, sourceType, targetExt) {
+  try {
+    // Create a Sharp instance with the input buffer
+    const image = sharp(data);
+
+    // Set the options based on target format
+    switch (targetExt) {
+      case 'png':
+        return await image.png().toBuffer();
+      case 'jpg':
+      case 'jpeg':
+        return await image.jpeg().toBuffer();
+      case 'webp':
+        return await image.webp().toBuffer();
+      case 'gif':
+        return await image.gif().toBuffer();
+      case 'avif':
+        return await image.avif().toBuffer();
+      default:
+        // If no conversion needed, return original
+        if (sourceType === `image/${targetExt}`) {
+          return data;
+        }
+        // For any other extension, default to PNG
+        return await image.png().toBuffer();
+    }
+  } catch (err) {
+    logger.error({ err }, 'Error converting image');
+    throw new Error(`Unable to convert image: ${err.message}`);
   }
 }
 
