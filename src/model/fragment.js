@@ -293,6 +293,9 @@ class Fragment {
 
       // Get current fragment data
       const data = await this.getData();
+      if (!data) {
+        throw new Error('Failed to get fragment data for versioning');
+      }
 
       // Save version metadata
       await writeFragmentVersion(version);
@@ -311,6 +314,7 @@ class Fragment {
       logger.error('Error creating fragment version', {
         fragmentId: this.id,
         error: error.message,
+        stack: error.stack,
       });
       throw error;
     }
@@ -327,11 +331,15 @@ class Fragment {
       : require('./data/memory/versions');
 
     try {
-      return await listFragmentVersions(this.ownerId, this.id, expand);
+      logger.debug('Getting versions for fragment', { id: this.id, ownerId: this.ownerId });
+      const versions = await listFragmentVersions(this.ownerId, this.id, expand);
+      logger.debug('Retrieved versions', { count: versions.length });
+      return versions;
     } catch (error) {
       logger.error('Error getting fragment versions', {
         fragmentId: this.id,
         error: error.message,
+        stack: error.stack,
       });
       throw error;
     }
@@ -353,6 +361,11 @@ class Fragment {
       try {
         const { fragmentId } = FragmentVersion.parseVersionId(versionId);
         if (fragmentId !== this.id) {
+          logger.warn('Version does not belong to this fragment', {
+            fragmentId: this.id,
+            versionId,
+            parsedFragmentId: fragmentId,
+          });
           throw new Error('Version does not belong to this fragment');
         }
       } catch (parseError) {
@@ -361,20 +374,43 @@ class Fragment {
       }
 
       // Get the version metadata
+      logger.debug('Getting version metadata', { versionId, ownerId: this.ownerId });
       const version = await readFragmentVersion(this.ownerId, versionId);
       if (!version) {
+        logger.warn('Version metadata not found', { versionId, ownerId: this.ownerId });
         return null;
       }
 
       // Get the version data
-      const data = await readFragmentVersionData(this.ownerId, versionId);
+      logger.debug('Getting version data', { versionId, ownerId: this.ownerId });
+      try {
+        const data = await readFragmentVersionData(this.ownerId, versionId);
+        if (!data) {
+          logger.warn('Version data not found', { versionId, ownerId: this.ownerId });
+          return null;
+        }
 
-      return { metadata: version, data };
+        logger.debug('Successfully retrieved version data', {
+          versionId,
+          dataSize: data.length,
+          type: version.type,
+        });
+
+        return { metadata: version, data };
+      } catch (dataError) {
+        logger.error('Error reading version data', {
+          versionId,
+          error: dataError.message,
+          stack: dataError.stack,
+        });
+        throw new Error(`Error reading version data: ${dataError.message}`);
+      }
     } catch (error) {
       logger.error('Error getting fragment version', {
         fragmentId: this.id,
         versionId,
         error: error.message,
+        stack: error.stack,
       });
       throw error;
     }
@@ -402,6 +438,11 @@ class Fragment {
         fragmentId = result.fragmentId;
 
         if (fragmentId !== this.id) {
+          logger.warn('Version does not belong to this fragment', {
+            fragmentId: this.id,
+            versionId,
+            parsedFragmentId: fragmentId,
+          });
           throw new Error('Version does not belong to this fragment');
         }
       } catch (parseError) {
@@ -410,13 +451,19 @@ class Fragment {
       }
 
       // Get the version data
+      logger.debug('Getting version data for restore', { versionId, ownerId: this.ownerId });
       const versionData = await readFragmentVersionData(this.ownerId, versionId);
       if (!versionData) {
-        logger.warn('Version data not found', { versionId });
+        logger.warn('Version data not found for restore', { versionId });
         throw new Error('Version data not found');
       }
 
       // Update the fragment with this version's data
+      logger.debug('Updating fragment with version data', {
+        fragmentId: this.id,
+        versionId,
+        dataSize: versionData.length,
+      });
       await this.setData(versionData);
 
       logger.info('Restored fragment to version', {
@@ -430,6 +477,7 @@ class Fragment {
         fragmentId: this.id,
         versionId,
         error: error.message,
+        stack: error.stack,
       });
       throw error;
     }
