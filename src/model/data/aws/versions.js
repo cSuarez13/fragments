@@ -5,7 +5,19 @@ const { PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aw
 const s3Client = require('./s3Client');
 const ddbDocClient = require('./ddbDocClient');
 const logger = require('../../../logger');
-const { streamToBuffer } = require('./index'); // Reuse this function from the main AWS implementation
+
+/**
+ * Converts a readable stream to a Buffer
+ * @param {ReadableStream} stream - The stream to convert
+ * @returns {Promise<Buffer>} - A Promise that resolves to a Buffer
+ */
+const streamToBuffer = (stream) =>
+  new Promise((resolve, reject) => {
+    const chunks = [];
+    stream.on('data', (chunk) => chunks.push(chunk));
+    stream.on('error', reject);
+    stream.on('end', () => resolve(Buffer.concat(chunks)));
+  });
 
 /**
  * Writes a fragment version's metadata to DynamoDB.
@@ -86,6 +98,7 @@ async function writeFragmentVersionData(ownerId, versionId, data) {
   try {
     // Use our client to send the command
     await s3Client.send(command);
+    logger.debug({ ownerId, versionId }, 'Successfully uploaded fragment version data to S3');
   } catch (err) {
     // If anything goes wrong, log enough info that we can debug
     const { Bucket, Key } = params;
@@ -108,14 +121,29 @@ async function readFragmentVersionData(ownerId, versionId) {
     Key: `${ownerId}/versions/${versionId}`,
   };
 
+  logger.debug(`Reading version data from S3: ${params.Bucket}/${params.Key}`);
+
   // Create a GET Object command to send to S3
   const command = new GetObjectCommand(params);
 
   try {
     // Get the object from Amazon S3. It is returned as a ReadableStream.
     const data = await s3Client.send(command);
+
+    // Add additional debug info
+    logger.debug(
+      {
+        contentLength: data.ContentLength,
+        contentType: data.ContentType,
+        hasBody: !!data.Body,
+      },
+      'S3 response details'
+    );
+
     // Convert the ReadableStream to a Buffer
-    return streamToBuffer(data.Body);
+    const buffer = await streamToBuffer(data.Body);
+    logger.debug(`Successfully read version data from S3, size: ${buffer.length} bytes`);
+    return buffer;
   } catch (err) {
     const { Bucket, Key } = params;
     logger.error({ err, Bucket, Key }, 'Error streaming fragment version data from S3');
@@ -157,6 +185,7 @@ async function listFragmentVersions(ownerId, fragmentId, expand = false) {
   try {
     // Wait for the data to come back from AWS
     const data = await ddbDocClient.send(command);
+    logger.debug({ count: data?.Items?.length }, 'Retrieved versions from DynamoDB');
 
     // If we haven't expanded, remap this array from [{id: "..."}, ...] to ["...", ...]
     if (!expand) {
@@ -234,4 +263,5 @@ module.exports = {
   listFragmentVersions,
   deleteFragmentVersion,
   getLatestVersionNumber,
+  streamToBuffer,
 };

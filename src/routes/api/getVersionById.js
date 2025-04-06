@@ -19,18 +19,29 @@ module.exports = async (req, res) => {
       return res.status(404).json(createErrorResponse(404, 'Fragment not found'));
     }
 
-    // Get the specific version
-    const version = await fragment.getVersion(versionId);
-    if (!version) {
-      logger.warn('Version not found', { id, versionId });
-      return res.status(404).json(createErrorResponse(404, 'Version not found'));
+    // Log but don't return error for validation - we'll return 404 for any non-existent version
+    if (!versionId.startsWith(id + '_v')) {
+      logger.warn('Invalid version ID format', { id, versionId });
+      // We'll continue processing and let getVersion return null, which will result in a 404
     }
 
-    // Return the version data with the appropriate content type
-    res.setHeader('Content-Type', version.metadata.type);
-    return res.send(version.data);
+    // Get the specific version
+    try {
+      const version = await fragment.getVersion(versionId);
+      if (!version) {
+        logger.warn('Version not found', { id, versionId });
+        return res.status(404).json(createErrorResponse(404, 'Version not found'));
+      }
+
+      // Return the version data with the appropriate content type
+      res.setHeader('Content-Type', version.metadata.type);
+      return res.send(version.data);
+    } catch (versionError) {
+      logger.error({ error: versionError }, 'Error retrieving fragment version');
+      return res.status(500).json(createErrorResponse(500, 'Unable to retrieve fragment version'));
+    }
   } catch (error) {
-    logger.error({ error }, 'Error getting fragment version');
+    logger.error({ error }, 'Error processing get version request');
     res.status(500).json(createErrorResponse(500, error.message));
   }
 };
