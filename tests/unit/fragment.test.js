@@ -318,4 +318,92 @@ describe('Fragment class - extended tests', () => {
       await expect(Fragment.delete('owner-123', 'non-existent-id')).rejects.toThrow('Not found');
     });
   });
+
+  // Test error handling in getVersion for invalid versionId
+  test('getVersion returns null for invalid version ID format', async () => {
+    const fragment = new Fragment({
+      id: 'test-id',
+      ownerId: 'owner-123',
+      type: 'text/plain',
+      size: 10,
+    });
+
+    const result = await fragment.getVersion('invalid-version-format');
+    expect(result).toBeNull();
+  });
+
+  // Test error handling in getVersion when version doesn't belong to fragment
+  test('getVersion returns null when version belongs to different fragment', async () => {
+    const fragment = new Fragment({
+      id: 'test-id',
+      ownerId: 'owner-123',
+      type: 'text/plain',
+      size: 10,
+    });
+
+    const result = await fragment.getVersion('other-fragment-id_v1');
+    expect(result).toBeNull();
+  });
+
+  // Test error handling in getData
+  test('getData handles errors gracefully', async () => {
+    const dataLayer = require('../../src/model/data');
+    dataLayer.readFragmentData.mockRejectedValue(new Error('Data access error'));
+
+    const fragment = new Fragment({
+      id: 'test-id',
+      ownerId: 'owner-123',
+      type: 'text/plain',
+      size: 10,
+    });
+
+    await expect(fragment.getData()).rejects.toThrow('Data access error');
+  });
+
+  // Test error handling in setData
+  test('setData handles errors gracefully', async () => {
+    const dataLayer = require('../../src/model/data');
+    dataLayer.writeFragmentData.mockRejectedValue(new Error('Data write error'));
+
+    const fragment = new Fragment({
+      id: 'test-id',
+      ownerId: 'owner-123',
+      type: 'text/plain',
+      size: 10,
+    });
+
+    await expect(fragment.setData(Buffer.from('test'))).rejects.toThrow('Data write error');
+  });
+
+  // Test edge cases for supported content types
+  test('isSupportedType handles various edge cases', () => {
+    // Valid types with parameters
+    expect(Fragment.isSupportedType('text/plain; charset=utf-8')).toBe(true);
+    expect(Fragment.isSupportedType('text/markdown; charset=utf-8')).toBe(true);
+
+    // Invalid content type formats
+    expect(Fragment.isSupportedType('')).toBe(false);
+    expect(Fragment.isSupportedType(null)).toBe(false);
+    expect(Fragment.isSupportedType(undefined)).toBe(false);
+    expect(Fragment.isSupportedType('invalid type')).toBe(false);
+
+    // Unsupported but valid content types
+    expect(Fragment.isSupportedType('audio/mp3')).toBe(false);
+    expect(Fragment.isSupportedType('video/mp4')).toBe(false);
+  });
+
+  // Test error handling in save method
+  test('save handles errors gracefully', async () => {
+    const dataLayer = require('../../src/model/data');
+    dataLayer.writeFragment.mockRejectedValue(new Error('Metadata write error'));
+
+    const fragment = new Fragment({
+      id: 'test-id',
+      ownerId: 'owner-123',
+      type: 'text/plain',
+      size: 10,
+    });
+
+    await expect(fragment.save()).rejects.toThrow('Metadata write error');
+  });
 });

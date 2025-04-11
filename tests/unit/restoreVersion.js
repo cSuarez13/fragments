@@ -166,4 +166,58 @@ describe('POST /v1/fragments/:id/versions', () => {
     expect(res.statusCode).toBe(400);
     expect(res.body.status).toBe('error');
   });
+
+  // Test handling of content type errors
+  test('handles non-JSON content type gracefully', async () => {
+    const testFragment = {
+      id: 'test-fragment-id',
+      restoreVersion: jest.fn(),
+    };
+
+    Fragment.byId.mockResolvedValue(testFragment);
+
+    const res = await request(app)
+      .post('/v1/fragments/test-fragment-id/versions')
+      .auth('user1@email.com', 'password1')
+      .set('Content-Type', 'text/plain')
+      .send('versionId=123');
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.status).toBe('error');
+  });
+
+  // Test detailed error handling for version restoration
+  test('handles detailed version restoration errors', async () => {
+    const restoreError = new Error('Custom restore error');
+    restoreError.details = { code: 'CUSTOM_ERROR', versionId: '123' };
+
+    const testFragment = {
+      id: 'test-fragment-id',
+      restoreVersion: jest.fn().mockRejectedValue(restoreError),
+    };
+
+    Fragment.byId.mockResolvedValue(testFragment);
+
+    const res = await request(app)
+      .post('/v1/fragments/test-fragment-id/versions')
+      .auth('user1@email.com', 'password1')
+      .set('Content-Type', 'application/json')
+      .send({ versionId: '123' });
+
+    expect(res.statusCode).toBe(500);
+    expect(res.body.status).toBe('error');
+    expect(res.body.error.message).toContain('Custom restore error');
+  });
+
+  // Test with malformed JSON
+  test('handles malformed JSON gracefully', async () => {
+    const res = await request(app)
+      .post('/v1/fragments/test-fragment-id/versions')
+      .auth('user1@email.com', 'password1')
+      .set('Content-Type', 'application/json')
+      .send('{"versionId": "123"'); // Malformed JSON
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.status).toBe('error');
+  });
 });

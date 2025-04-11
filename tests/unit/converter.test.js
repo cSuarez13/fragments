@@ -43,11 +43,11 @@ jest.mock('js-yaml', () => ({
   }),
 }));
 
-describe('Converter Utils - Extended Tests', () => {
+describe('Converter Utils', () => {
   describe('convertData() additional tests', () => {
     // Test error handling for JSON parsing
     test('throws error when parsing invalid JSON', async () => {
-      const invalidJson = Buffer.from('{"name": "Test", value: 123}'); // Missing quotes around 'value'
+      const invalidJson = Buffer.from('{"name": "Test", value: 123}');
 
       await expect(convertData(invalidJson, 'application/json', 'yaml')).rejects.toThrow();
     });
