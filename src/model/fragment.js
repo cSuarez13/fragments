@@ -152,7 +152,7 @@ class Fragment {
 
     // Handle text formats
     if (baseMimeType === 'text/plain') {
-      return ['text/plain'];
+      return ['text/plain']; // Keep original return value for test compatibility
     }
 
     if (baseMimeType === 'text/markdown') {
@@ -169,7 +169,7 @@ class Fragment {
 
     // Handle data formats
     if (baseMimeType === 'application/json') {
-      return ['json', 'txt'];
+      return ['json', 'yaml', 'yml', 'txt'];
     }
 
     if (baseMimeType === 'application/yaml' || baseMimeType === 'application/yml') {

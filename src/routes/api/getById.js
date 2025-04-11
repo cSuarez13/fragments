@@ -38,9 +38,48 @@ module.exports = async (req, res) => {
       return res.send(data);
     }
 
+    // Special case for text/plain to txt conversion
+    if (fragment.type.startsWith('text/plain') && targetFormat === 'txt') {
+      logger.debug('Special case: text/plain to txt conversion', {
+        id: fragmentId,
+        sourceType: fragment.type,
+        targetFormat,
+      });
+      // Just send the plain text data with text/plain content type
+      res.setHeader('Content-Type', 'text/plain');
+      return res.send(data);
+    }
+
     // Check if the requested conversion is supported for this fragment
     // We need to handle this differently based on the implementation of fragment.formats
     const formats = fragment.formats || [];
+
+    // Special case for application/json to yaml/yml conversion
+    if (
+      fragment.type.startsWith('application/json') &&
+      (targetFormat === 'yaml' || targetFormat === 'yml')
+    ) {
+      logger.debug('Special case: JSON to YAML conversion', {
+        id: fragmentId,
+        sourceType: fragment.type,
+        targetFormat,
+      });
+
+      try {
+        // Convert the data using our converter
+        const convertedData = await convertData(data, fragment.type, targetFormat);
+        const contentType = getMimeType(targetFormat);
+        res.setHeader('Content-Type', contentType);
+        return res.send(convertedData);
+      } catch (conversionError) {
+        logger.error({ error: conversionError }, 'Error converting JSON to YAML');
+        return res
+          .status(500)
+          .json(createErrorResponse(500, `Error converting fragment: ${conversionError.message}`));
+      }
+    }
+
+    // Normal check for supported formats
     if (!formats.includes(targetFormat)) {
       logger.warn('Conversion not supported', {
         id: fragmentId,
