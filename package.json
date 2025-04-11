@@ -1,6 +1,6 @@
 {
   "name": "fragments",
-  "version": "0.11.2",
+  "version": "0.11.3",
   "description": "CCP555-Lab1",
   "main": "index.js",
   "scripts": {
