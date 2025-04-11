@@ -50,8 +50,6 @@ module.exports = async (req, res) => {
       return res.send(data);
     }
 
-    // Check if the requested conversion is supported for this fragment
-    // We need to handle this differently based on the implementation of fragment.formats
     const formats = fragment.formats || [];
 
     // Special case for application/json to yaml/yml conversion

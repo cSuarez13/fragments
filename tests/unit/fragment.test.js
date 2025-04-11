@@ -36,7 +36,7 @@ jest.mock('../../src/model/data/aws/versions', () => ({
 const dataLayer = require('../../src/model/data');
 const memoryVersions = require('../../src/model/data/memory/versions');
 
-describe('Fragment class - extended tests', () => {
+describe('Fragment class', () => {
   // Reset mocks between tests
   beforeEach(() => {
     jest.clearAllMocks();

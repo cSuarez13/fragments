@@ -19,10 +19,9 @@ module.exports = async (req, res) => {
       return res.status(404).json(createErrorResponse(404, 'Fragment not found'));
     }
 
-    // Log but don't return error for validation - we'll return 404 for any non-existent version
+    // We'll return 404 for any non-existent version
     if (!versionId.startsWith(id + '_v')) {
       logger.warn('Invalid version ID format', { id, versionId });
-      // We'll continue processing and let getVersion return null, which will result in a 404
     }
 
     // Get the specific version

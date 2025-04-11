@@ -6,13 +6,6 @@ const logger = require('../../../logger');
 const ddbDocClient = require('./ddbDocClient');
 const { PutCommand, GetCommand, QueryCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
 
-// XXX: temporary use of memory-db until we add DynamoDB
-//const MemoryDB = require('../memory/memory-db');
-
-// Create instances of our memory-based data access objects
-// const data = new MemoryDB();
-//const metadata = new MemoryDB();
-
 // Writes a fragment to DynamoDB. Returns a Promise.
 function writeFragment(fragment) {
   // Configure our PUT params, with the name of the table and item (attributes and keys)

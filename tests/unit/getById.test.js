@@ -25,7 +25,7 @@ jest.mock('../../src/utils/converter', () => ({
 // Import after mocking
 const { convertData } = require('../../src/utils/converter');
 
-describe('GET /v1/fragments/:id - Extended Tests', () => {
+describe('GET /v1/fragments/:id', () => {
   const testFragment = {
     id: 'test-fragment-id',
     ownerId: 'test-owner',

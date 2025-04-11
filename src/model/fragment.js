@@ -147,12 +147,12 @@ class Fragment {
   get formats() {
     logger.debug('Getting supported formats', { type: this.type });
 
-    // Base MIME type (without parameters like charset)
+    // Base MIME type
     const baseMimeType = this.mimeType.split(';')[0].trim();
 
     // Handle text formats
     if (baseMimeType === 'text/plain') {
-      return ['text/plain']; // Keep original return value for test compatibility
+      return ['text/plain'];
     }
 
     if (baseMimeType === 'text/markdown') {
@@ -186,7 +186,7 @@ class Fragment {
     return ext ? [ext] : [];
   }
 
-  // Add a helper method to determine if a fragment can be converted to a target type
+  // Helper method to determine if a fragment can be converted to a target type
   canConvert(extension) {
     // Plain text can only be returned as text/plain
     if (this.type.startsWith('text/plain')) {
@@ -203,7 +203,7 @@ class Fragment {
       return ['html', 'txt'].includes(extension);
     }
 
-    // Handle image conversions - all image types can be converted to any other image type
+    // All image types can be converted to any other image type
     if (this.type.startsWith('image/')) {
       return ['png', 'jpg', 'jpeg', 'webp', 'gif', 'avif'].includes(extension);
     }

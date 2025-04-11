@@ -165,7 +165,7 @@ describe('Fragment Versioning', () => {
       const res = await request(app)
         .post('/v1/fragments/fragment-id/versions')
         .auth('user1@email.com', 'password1')
-        .set('Content-Type', 'application/json') // Explicitly set Content-Type
+        .set('Content-Type', 'application/json')
         .send({}); // Empty JSON object
 
       expect(res.statusCode).toBe(400);
@@ -191,7 +191,7 @@ describe('Fragment Versioning', () => {
       const res = await request(app)
         .post('/v1/fragments/fragment-id/versions')
         .auth('user1@email.com', 'password1')
-        .set('Content-Type', 'application/json') // Explicitly set Content-Type
+        .set('Content-Type', 'application/json')
         .send({ versionId: 'fragment-id_v1' }); // JSON with versionId
 
       expect(res.statusCode).toBe(200);

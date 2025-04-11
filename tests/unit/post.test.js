@@ -15,7 +15,6 @@ describe('POST /v1/fragments', () => {
       .set('Content-Type', 'text/plain')
       .send(data);
     expect(res.statusCode).toBe(201);
-    // Changed to expect application/json instead of text/plain
     expect(res.headers['content-type']).toContain('application/json');
   });
 
@@ -49,7 +48,6 @@ describe('POST /v1/fragments', () => {
       .set('Content-Type', contentType)
       .set('Accept', 'application/json')
       .send(testData)
-      // Changed to expect application/json instead of text/plain
       .expect('Content-Type', /application\/json/)
       .expect(201);
 

@@ -38,7 +38,6 @@ module.exports = async (req, res) => {
       logger.warn(`Could not create version for fragment id=${id}`, {
         error: versionError.message,
       });
-      // Continue with the update even if versioning fails
     }
 
     // Update the fragment data

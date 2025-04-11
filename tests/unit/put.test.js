@@ -87,7 +87,7 @@ describe('PUT /v1/fragments/:id', () => {
     const res = await request(app)
       .put('/v1/fragments/test-fragment-id')
       .auth('user1@email.com', 'password1')
-      .set('Content-Type', 'application/json') // Different from testFragment.type
+      .set('Content-Type', 'application/json')
       .send('{"key": "value"}');
 
     expect(res.statusCode).toBe(400);
