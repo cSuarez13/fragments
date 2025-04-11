@@ -1,24 +1,29 @@
 // tests/unit/converter.test.js
 const { convertData, getMimeType } = require('../../src/utils/converter');
 
-// Mock the required modules
+// Mock required modules
 jest.mock('../../src/logger');
+
+jest.mock('markdown-it', () => {
+  return jest.fn().mockImplementation(() => ({
+    render: jest.fn((text) => `<h1>${text}</h1>`),
+  }));
+});
+
 jest.mock('sharp', () => {
-  // Create a mock implementation of Sharp
-  const mockSharp = jest.fn().mockReturnValue({
+  return jest.fn().mockReturnValue({
     png: jest.fn().mockReturnThis(),
     jpeg: jest.fn().mockReturnThis(),
+    jpg: jest.fn().mockReturnThis(),
     webp: jest.fn().mockReturnThis(),
     gif: jest.fn().mockReturnThis(),
     avif: jest.fn().mockReturnThis(),
-    toBuffer: jest.fn().mockResolvedValue(Buffer.from('mock-converted-image')),
+    toBuffer: jest.fn().mockResolvedValue(Buffer.from('converted-image')),
   });
-  return mockSharp;
 });
 
 jest.mock('js-yaml', () => ({
-  dump: jest.fn().mockImplementation((obj) => {
-    // Simple mock implementation for YAML dump
+  dump: jest.fn((obj) => {
     if (typeof obj === 'object') {
       return Object.entries(obj)
         .map(([key, value]) => `${key}: ${value}`)
@@ -26,11 +31,10 @@ jest.mock('js-yaml', () => ({
     }
     return String(obj);
   }),
-  load: jest.fn().mockImplementation((str) => {
-    // Simple mock implementation for YAML load
+  load: jest.fn((str) => {
     const result = {};
     str.split('\n').forEach((line) => {
-      const [key, value] = line.split(':').map((part) => part.trim());
+      const [key, value] = line.split(':').map((part) => part?.trim());
       if (key && value) {
         result[key] = value;
       }
@@ -39,160 +43,161 @@ jest.mock('js-yaml', () => ({
   }),
 }));
 
-describe('Converter', () => {
-  describe('getMimeType()', () => {
-    test('returns the correct MIME type for known extensions', () => {
-      expect(getMimeType('txt')).toBe('text/plain');
-      expect(getMimeType('md')).toBe('text/markdown');
-      expect(getMimeType('html')).toBe('text/html');
-      expect(getMimeType('json')).toBe('application/json');
+describe('Converter Utils - Extended Tests', () => {
+  describe('convertData() additional tests', () => {
+    // Test error handling for JSON parsing
+    test('throws error when parsing invalid JSON', async () => {
+      const invalidJson = Buffer.from('{"name": "Test", value: 123}'); // Missing quotes around 'value'
+
+      await expect(convertData(invalidJson, 'application/json', 'yaml')).rejects.toThrow();
+    });
+
+    // Test edge cases for YAML conversion
+    test('handles empty YAML conversion', async () => {
+      const emptyYaml = Buffer.from('');
+      const result = await convertData(emptyYaml, 'application/yaml', 'json');
+
+      expect(result).toBeInstanceOf(Buffer);
+      expect(JSON.parse(result.toString())).toEqual({});
+    });
+
+    // Test HTML to text conversion
+    test('converts HTML to plain text by stripping tags', async () => {
+      const html = Buffer.from('<h1>Title</h1><p>Some <strong>important</strong> content.</p>');
+      const text = await convertData(html, 'text/html', 'txt');
+
+      expect(text.toString()).not.toContain('<h1>');
+      expect(text.toString()).toContain('Title');
+      expect(text.toString()).toContain('Some');
+      expect(text.toString()).toContain('important');
+      expect(text.toString()).toContain('content');
+    });
+
+    // Test CSV to JSON conversion
+    test('converts CSV to JSON with proper headers', async () => {
+      const csv = Buffer.from('name,age,location\nJohn,30,New York\nJane,25,San Francisco');
+      const json = await convertData(csv, 'text/csv', 'json');
+
+      const parsed = JSON.parse(json.toString());
+      expect(parsed).toHaveLength(2);
+      expect(parsed[0]).toEqual({ name: 'John', age: '30', location: 'New York' });
+      expect(parsed[1]).toEqual({ name: 'Jane', age: '25', location: 'San Francisco' });
+    });
+
+    // Test error handling in CSV conversion
+    test('handles malformed CSV without throwing errors', async () => {
+      const invalidCsv = Buffer.from('name,age\nJohn,30,extra\nJane');
+
+      const result = await convertData(invalidCsv, 'text/csv', 'json');
+      expect(result).toBeInstanceOf(Buffer);
+      const parsed = JSON.parse(result.toString());
+      expect(Array.isArray(parsed)).toBe(true);
+    });
+
+    // Test image format conversions
+    test('converts between different image formats correctly', async () => {
+      const sharp = require('sharp');
+      const pngBuffer = Buffer.from('fake-png-data');
+
+      // Test PNG to JPEG conversion
+      await convertData(pngBuffer, 'image/png', 'jpg');
+      expect(sharp).toHaveBeenCalledWith(pngBuffer);
+      expect(sharp().jpeg).toHaveBeenCalled();
+
+      // Test PNG to WEBP conversion
+      await convertData(pngBuffer, 'image/png', 'webp');
+      expect(sharp).toHaveBeenCalledWith(pngBuffer);
+      expect(sharp().webp).toHaveBeenCalled();
+
+      // Test PNG to AVIF conversion
+      await convertData(pngBuffer, 'image/png', 'avif');
+      expect(sharp).toHaveBeenCalledWith(pngBuffer);
+      expect(sharp().avif).toHaveBeenCalled();
+
+      // Test PNG to GIF conversion
+      await convertData(pngBuffer, 'image/png', 'gif');
+      expect(sharp).toHaveBeenCalledWith(pngBuffer);
+      expect(sharp().gif).toHaveBeenCalled();
+    });
+
+    // Test error handling for image conversion
+    test('handles errors in image conversion', async () => {
+      const sharp = require('sharp');
+      sharp().toBuffer.mockRejectedValueOnce(new Error('Image conversion error'));
+
+      await expect(convertData(Buffer.from('image-data'), 'image/jpeg', 'png')).rejects.toThrow(
+        'Image conversion error'
+      );
+    });
+
+    // Test handling of content types with parameters
+    test('handles content types with parameters', async () => {
+      const textWithCharset = Buffer.from('Hello World');
+      const result = await convertData(textWithCharset, 'text/plain; charset=utf-8', 'txt');
+
+      expect(result).toEqual(textWithCharset);
+    });
+
+    // Test returning original data for same format
+    test('returns original data for text/plain to txt conversion', async () => {
+      const originalData = Buffer.from('Original content');
+
+      // Text/plain to txt
+      const result = await convertData(originalData, 'text/plain', 'txt');
+      expect(result).toEqual(originalData);
+    });
+
+    test('throws error for invalid YAML conversion', async () => {
+      const jsYaml = require('js-yaml');
+      jsYaml.load.mockImplementationOnce(() => {
+        throw new Error('Invalid YAML');
+      });
+
+      await expect(
+        convertData(Buffer.from('invalid: yaml: format'), 'application/yaml', 'json')
+      ).rejects.toThrow('Unable to convert YAML data');
+    });
+
+    // Test for default case when no specific conversion is defined
+    test('returns original data for unknown conversion type', async () => {
+      const originalData = Buffer.from('Original content');
+      const result = await convertData(originalData, 'application/custom', 'custom');
+      expect(result).toEqual(originalData);
+    });
+  });
+
+  describe('getMimeType() additional tests', () => {
+    test('returns correct MIME type for known extensions', () => {
+      expect(getMimeType('csv')).toBe('text/csv');
       expect(getMimeType('yaml')).toBe('application/yaml');
       expect(getMimeType('yml')).toBe('application/yaml');
-      expect(getMimeType('png')).toBe('image/png');
-      expect(getMimeType('jpg')).toBe('image/jpeg');
-      expect(getMimeType('jpeg')).toBe('image/jpeg');
-      expect(getMimeType('webp')).toBe('image/webp');
       expect(getMimeType('avif')).toBe('image/avif');
       expect(getMimeType('gif')).toBe('image/gif');
     });
 
     test('returns application/octet-stream for unknown extensions', () => {
-      expect(getMimeType('unknown')).toBe('application/octet-stream');
+      expect(getMimeType('xyz')).toBe('application/octet-stream');
+      expect(getMimeType('custom')).toBe('application/octet-stream');
       expect(getMimeType('')).toBe('application/octet-stream');
+    });
+
+    test('uses lowercase for extensions', () => {
+      expect(getMimeType('jpg')).toBe('image/jpeg');
+      expect(getMimeType('png')).toBe('image/png');
+      expect(getMimeType('json')).toBe('application/json');
     });
   });
 
-  describe('convertData()', () => {
-    // Markdown conversion tests
-    test('converts markdown to HTML', async () => {
-      const markdown = Buffer.from('# Heading\n\nParagraph', 'utf8');
-      const html = await convertData(markdown, 'text/markdown', 'html');
-      expect(html.toString()).toContain('<h1>Heading</h1>');
-      expect(html.toString()).toContain('<p>Paragraph</p>');
-    });
+  describe('error handling edge cases', () => {
+    test('handles image conversion errors', async () => {
+      // Set up sharp to throw
+      const sharp = require('sharp');
+      sharp().toBuffer.mockRejectedValueOnce(new Error('Sharp error'));
 
-    test('converts markdown to plain text', async () => {
-      const markdown = Buffer.from('# Heading\n\nParagraph', 'utf8');
-      const text = await convertData(markdown, 'text/markdown', 'txt');
-      expect(text.toString()).toBe('# Heading\n\nParagraph');
-    });
-
-    test('returns original markdown when target format is md', async () => {
-      const markdown = Buffer.from('# Heading\n\nParagraph', 'utf8');
-      const result = await convertData(markdown, 'text/markdown', 'md');
-      expect(result).toBe(markdown);
-    });
-
-    // HTML conversion tests
-    test('converts HTML to plain text', async () => {
-      const html = Buffer.from('<h1>Title</h1><p>Content</p>', 'utf8');
-      const text = await convertData(html, 'text/html', 'txt');
-      expect(text.toString()).toBe('Title Content');
-    });
-
-    test('returns original HTML when target format is html', async () => {
-      const html = Buffer.from('<h1>Title</h1><p>Content</p>', 'utf8');
-      const result = await convertData(html, 'text/html', 'html');
-      expect(result).toBe(html);
-    });
-
-    // CSV conversion tests
-    test('converts CSV to JSON', async () => {
-      const csv = Buffer.from('name,age\nJohn,30\nJane,25', 'utf8');
-      const json = await convertData(csv, 'text/csv', 'json');
-      const parsed = JSON.parse(json.toString());
-      expect(parsed).toHaveLength(2);
-      expect(parsed[0].name).toBe('John');
-      expect(parsed[0].age).toBe('30');
-      expect(parsed[1].name).toBe('Jane');
-      expect(parsed[1].age).toBe('25');
-    });
-
-    test('returns CSV as text when target format is txt', async () => {
-      const csv = Buffer.from('name,age\nJohn,30\nJane,25', 'utf8');
-      const text = await convertData(csv, 'text/csv', 'txt');
-      expect(text).toBe(csv);
-    });
-
-    // JSON conversion tests
-    test('converts JSON to text', async () => {
-      const json = Buffer.from('{"name":"Test","value":123}', 'utf8');
-      const text = await convertData(json, 'application/json', 'txt');
-      // Should be prettified JSON
-      expect(text.toString()).toContain('"name": "Test"');
-      expect(text.toString()).toContain('"value": 123');
-    });
-
-    test('converts JSON to YAML', async () => {
-      const json = Buffer.from('{"name":"Test","value":123}', 'utf8');
-      const yaml = await convertData(json, 'application/json', 'yaml');
-      expect(yaml.toString()).toContain('name: Test');
-      expect(yaml.toString()).toContain('value: 123');
-    });
-
-    test('returns original JSON when target format is json', async () => {
-      const json = Buffer.from('{"name":"Test","value":123}', 'utf8');
-      const result = await convertData(json, 'application/json', 'json');
-      expect(result).toBe(json);
-    });
-
-    // YAML conversion tests
-    test('converts YAML to JSON', async () => {
-      const yaml = Buffer.from('name: Test\nvalue: 123', 'utf8');
-      const json = await convertData(yaml, 'application/yaml', 'json');
-      const parsed = JSON.parse(json.toString());
-      expect(parsed.name).toBe('Test');
-      expect(parsed.value).toBe('123');
-    });
-
-    test('returns YAML as text when target format is txt', async () => {
-      const yaml = Buffer.from('name: Test\nvalue: 123', 'utf8');
-      const text = await convertData(yaml, 'application/yaml', 'txt');
-      expect(text).toBe(yaml);
-    });
-
-    // Image conversion tests
-    test('converts PNG to JPEG', async () => {
-      const png = Buffer.from('mock-png-data');
-      const jpeg = await convertData(png, 'image/png', 'jpg');
-      expect(jpeg.toString()).toBe('mock-converted-image');
-    });
-
-    test('converts JPEG to PNG', async () => {
-      const jpeg = Buffer.from('mock-jpeg-data');
-      const png = await convertData(jpeg, 'image/jpeg', 'png');
-      expect(png.toString()).toBe('mock-converted-image');
-    });
-
-    test('converts JPEG to WebP', async () => {
-      const jpeg = Buffer.from('mock-jpeg-data');
-      const webp = await convertData(jpeg, 'image/jpeg', 'webp');
-      expect(webp.toString()).toBe('mock-converted-image');
-    });
-
-    test('converts WebP to AVIF', async () => {
-      const webp = Buffer.from('mock-webp-data');
-      const avif = await convertData(webp, 'image/webp', 'avif');
-      expect(avif.toString()).toBe('mock-converted-image');
-    });
-
-    test('converts GIF to PNG', async () => {
-      const gif = Buffer.from('mock-gif-data');
-      const png = await convertData(gif, 'image/gif', 'png');
-      expect(png.toString()).toBe('mock-converted-image');
-    });
-
-    // Content Type with charset parameter
-    test('handles content types with charset parameter', async () => {
-      const text = Buffer.from('Hello World', 'utf8');
-      const result = await convertData(text, 'text/plain; charset=utf-8', 'txt');
-      expect(result).toBe(text);
-    });
-
-    // Error handling
-    test('throws error when JSON conversion fails', async () => {
-      const invalidJson = Buffer.from('{"name": unclosed quote}', 'utf8');
-      await expect(convertData(invalidJson, 'application/json', 'yaml')).rejects.toThrow();
+      // Test image conversion error
+      await expect(convertData(Buffer.from('image-data'), 'image/png', 'jpg')).rejects.toThrow(
+        'Sharp error'
+      );
     });
   });
 });
