@@ -1,6 +1,4 @@
 // src/routes/api/search.js
-// Implements a search endpoint for fragments
-
 const { Fragment } = require('../../model/fragment');
 const { createSuccessResponse, createErrorResponse } = require('../../response');
 const logger = require('../../logger');
@@ -56,9 +54,18 @@ module.exports = async (req, res) => {
           .status(400)
           .json(createErrorResponse(400, 'Invalid date format for "before" parameter'));
       }
+
+      // Set time to end of day to make the comparison more intuitive
+      beforeDate.setHours(23, 59, 59, 999);
+
       filteredFragments = filteredFragments.filter(
-        (fragment) => new Date(fragment.created) < beforeDate
+        (fragment) => new Date(fragment.created) <= beforeDate
       );
+
+      logger.debug('Filtered by before date', {
+        beforeDate: beforeDate.toISOString(),
+        remaining: filteredFragments.length,
+      });
     }
 
     // Filter by creation date - after
@@ -69,12 +76,21 @@ module.exports = async (req, res) => {
           .status(400)
           .json(createErrorResponse(400, 'Invalid date format for "after" parameter'));
       }
+
+      // Set time to beginning of day to make the comparison more intuitive
+      afterDate.setHours(0, 0, 0, 0);
+
       filteredFragments = filteredFragments.filter(
-        (fragment) => new Date(fragment.created) > afterDate
+        (fragment) => new Date(fragment.created) >= afterDate
       );
+
+      logger.debug('Filtered by after date', {
+        afterDate: afterDate.toISOString(),
+        remaining: filteredFragments.length,
+      });
     }
 
-    // Filter by modified date
+    // Filter by modified date - handle edge case of fragments not truly modified
     if (modified) {
       const modifiedDate = new Date(modified);
       if (isNaN(modifiedDate)) {
@@ -82,9 +98,29 @@ module.exports = async (req, res) => {
           .status(400)
           .json(createErrorResponse(400, 'Invalid date format for "modified" parameter'));
       }
-      filteredFragments = filteredFragments.filter(
-        (fragment) => new Date(fragment.updated) > modifiedDate
-      );
+
+      // Set time to beginning of day for more intuitive comparison
+      modifiedDate.setHours(0, 0, 0, 0);
+
+      filteredFragments = filteredFragments.filter((fragment) => {
+        const createdDate = new Date(fragment.created);
+        const updatedDate = new Date(fragment.updated);
+
+        // Check if the fragment has been meaningfully modified
+        // Only consider it modified if the difference is more than 2 seconds
+        // This helps filter out fragments that have nearly identical timestamps from creation process
+        const wasActuallyModified = Math.abs(updatedDate - createdDate) > 2000;
+
+        // Only include fragment if:
+        // 1. It was actually modified (timestamps differ by >2s)
+        // 2. The modification happened after the specified date
+        return wasActuallyModified && updatedDate >= modifiedDate;
+      });
+
+      logger.debug('Filtered by modified date', {
+        modifiedDate: modifiedDate.toISOString(),
+        remaining: filteredFragments.length,
+      });
     }
 
     // Filter by minimum size
@@ -96,6 +132,11 @@ module.exports = async (req, res) => {
           .json(createErrorResponse(400, 'Invalid value for "minSize" parameter'));
       }
       filteredFragments = filteredFragments.filter((fragment) => fragment.size >= minSizeNum);
+
+      logger.debug('Filtered by min size', {
+        minSize: minSizeNum,
+        remaining: filteredFragments.length,
+      });
     }
 
     // Filter by maximum size
@@ -107,6 +148,11 @@ module.exports = async (req, res) => {
           .json(createErrorResponse(400, 'Invalid value for "maxSize" parameter'));
       }
       filteredFragments = filteredFragments.filter((fragment) => fragment.size <= maxSizeNum);
+
+      logger.debug('Filtered by max size', {
+        maxSize: maxSizeNum,
+        remaining: filteredFragments.length,
+      });
     }
 
     // Check for expanded results request
